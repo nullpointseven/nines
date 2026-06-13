@@ -27,7 +27,7 @@
   };
 
   # Add stuff for your user as you see fit:
-  home.packages = with pkgs; [darktable rawtherapee vesktop tmux lua luarocks unzip python3 brightnessctl playerctl waybar copyq];
+  home.packages = with pkgs; [darktable rawtherapee vesktop tmux lua luarocks unzip python3 brightnessctl playerctl waybar copyq joplin-desktop joplin-desktop];
 
   # Enable home-manager and git
   programs = {
