@@ -156,6 +156,8 @@
     extraPortals = with pkgs; [xdg-desktop-portal-hyprland];
   };
 
+  hardware.amdgpu.opencl.enable = true;
+
   fonts.packages = [pkgs.nerd-fonts.jetbrains-mono];
 
   system.stateVersion = "26.05";
