@@ -146,6 +146,7 @@
     xwayland.enable = true;
   };
 
+  services.blueman.enable = true;
   services.udisks2.enable = true;
   services.xserver = {
     displayManager.lightdm.enable = true;
@@ -157,6 +158,16 @@
   };
 
   hardware.amdgpu.opencl.enable = true;
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+
+  hardware.bluetooth.settings = {
+    General = {
+      Experimental = true;
+    };
+  };
 
   fonts.packages = [pkgs.nerd-fonts.jetbrains-mono];
 
