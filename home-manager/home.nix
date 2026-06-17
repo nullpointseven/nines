@@ -5,6 +5,7 @@
   lib,
   config,
   pkgs,
+  system,
   ...
 }: {
   # You can import other home-manager modules here
@@ -27,7 +28,7 @@
   };
 
   # Add stuff for your user as you see fit:
-  home.packages = with pkgs; [darktable rawtherapee vesktop tmux lua luarocks unzip python3 brightnessctl playerctl waybar copyq joplin-desktop joplin-desktop];
+  home.packages = with pkgs; [darktable rawtherapee vesktop tmux lua luarocks unzip python3 brightnessctl playerctl waybar copyq joplin-desktop joplin-desktop inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher];
 
   # Enable home-manager and git
   programs = {
@@ -49,6 +50,9 @@
   };
 
   services.mpris-proxy.enable = true;
+  services.udiskie = {
+    enable = true;
+  };
 
   # https://nixos.wiki/wiki/FAQ/When_do_I_update_stateVersion
   home.stateVersion = "26.05";

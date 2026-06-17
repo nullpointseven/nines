@@ -6,6 +6,7 @@
   config,
   lib,
   pkgs,
+  system,
   ...
 }: {
   imports = [
@@ -18,7 +19,11 @@
   home-manager = {
     extraSpecialArgs = {inherit inputs;};
     users = {
-      zero = import ../home-manager/home.nix;
+      zero = {
+        imports = [
+          ../home-manager/home.nix
+        ];
+      };
     };
   };
 
