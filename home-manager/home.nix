@@ -43,6 +43,7 @@
     waybar
     copyq
 	zathura
+	qimgv
     joplin-desktop
     inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher
   ];
