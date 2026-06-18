@@ -28,7 +28,23 @@
   };
 
   # Add stuff for your user as you see fit:
-  home.packages = with pkgs; [darktable rawtherapee vesktop tmux lua luarocks unzip python3 brightnessctl playerctl waybar copyq joplin-desktop joplin-desktop inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher];
+  home.packages = with pkgs; [
+    darktable
+    rawtherapee
+    vesktop
+    libreoffice
+    tmux
+    lua
+    luarocks
+    unzip
+    python3
+    brightnessctl
+    playerctl
+    waybar
+    copyq
+    joplin-desktop
+    inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher
+  ];
 
   # Enable home-manager and git
   programs = {
