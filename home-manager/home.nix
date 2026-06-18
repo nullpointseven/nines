@@ -42,6 +42,7 @@
     playerctl
     waybar
     copyq
+	zathura
     joplin-desktop
     inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher
   ];
