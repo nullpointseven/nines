@@ -36,14 +36,18 @@
     tmux
     lua
     luarocks
+    mpv
     unzip
     python3
     brightnessctl
     playerctl
     waybar
     copyq
-	zathura
-	qimgv
+    zathura
+    qimgv
+    slurp
+    grim
+    wl-clipboard
     joplin-desktop
     inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher
   ];
