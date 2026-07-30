@@ -34,6 +34,9 @@
   nixpkgs = {
     config = {
       allowUnfree = true;
+      permittedInsecurePackages = [
+        "electron-39.8.10" # required by logseq
+      ];
     };
   };
 
@@ -89,9 +92,14 @@
   # Enable sound.
   # services.pulseaudio.enable = true;
   # OR
+  security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
     pulse.enable = true;
+    # If you want to use JACK applications, uncomment this
+    #jack.enable = true;
   };
 
   # Enable touchpad support (enabled default in most desktopManager).
@@ -129,6 +137,8 @@
     waybar
     kitty
     neovim
+    logseq
+    filen-desktop
 
     thunar
     nnn
@@ -162,7 +172,13 @@
     extraPortals = with pkgs; [
       xdg-desktop-portal-hyprland
       xdg-desktop-portal-gnome
+      xdg-desktop-portal-gtk
     ];
+    config = {
+      common.default = ["*"];
+      hyprland.default = ["gtk" "hyprland"];
+    };
+    xdgOpenUsePortal = true;
   };
 
   hardware.amdgpu.opencl.enable = true;

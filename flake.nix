@@ -47,7 +47,6 @@
 
     # NixOS configuration entrypoint
     nixosConfigurations = {
-      # FIXME replace with your hostname
       horizon = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs;};
         modules = [
