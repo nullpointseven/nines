@@ -16,6 +16,15 @@
     inputs.home-manager.nixosModules.home-manager
   ];
 
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+    fcitx5.addons = with pkgs; [
+      fcitx5-mozc
+      fcitx5-gtk
+    ];
+  };
+
   home-manager = {
     extraSpecialArgs = {inherit inputs;};
     users = {
@@ -100,6 +109,10 @@
     pulse.enable = true;
     # If you want to use JACK applications, uncomment this
     #jack.enable = true;
+  };
+
+  services.tailscale = {
+    enable = true;
   };
 
   # Enable touchpad support (enabled default in most desktopManager).
