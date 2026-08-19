@@ -79,6 +79,7 @@
           --write-efi-boot-entries \
           --flake ${self}#horizon \
           --disk main "$device" \
+          --extra-files ${self}/dotfiles /home/zero/.config/nixos/dotfiles \
           "$@"
       '';
     in {
