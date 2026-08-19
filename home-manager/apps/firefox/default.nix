@@ -120,8 +120,10 @@
           };
         };
       };
+    };
 
-      profiles.default.search = {
+    profiles.default = {
+      search = {
         force = true;
         default = "ddg";
         privateDefault = "ddg";
@@ -185,7 +187,7 @@
         };
       };
 
-      profiles.default.containers = {
+      containers = {
         Personal = {
           id = 1;
           color = "blue";
