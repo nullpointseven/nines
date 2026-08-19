@@ -6,14 +6,16 @@
   programs.firefox = {
     enable = true;
 
+    package = pkgs.wrapFirefox (pkgs.firefox-unwrapped.override {
+      pipewireSupport = true;
+    }) {};
+
     languagePacks = ["en-US"];
 
     policies = {
-      # Updates & Background Services
       AppAutoUpdate = false;
       BackgroundAppUpdate = false;
 
-      # Feature Disabling
       DisableFirefoxStudies = true;
       DisableFirefoxAccounts = true;
       DisableForgetButton = true;
@@ -25,19 +27,16 @@
       DisableTelemetry = true;
       DisableFormHistory = true;
 
-      # Access Restrictions
       BlockAboutConfig = false;
       BlockAboutProfiles = false;
       BlockAboutSupport = true;
 
-      # UI and Behavior
       DisplayMenuBar = "never";
       DontCheckDefaultBrowser = true;
       HardwareAcceleration = true;
       OfferToSaveLogins = false;
       DefaultDownloadDirectory = "$HOME/Downloads";
 
-      # Extensions
       ExtensionSettings = let
         moz = short: "https://addons.mozilla.org/firefox/downloads/latest/${short}/latest.xpi";
       in {
@@ -66,23 +65,25 @@
           installation_mode = "force_installed";
           private_browsing = true;
         };
+
         "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
           install_url = moz "bitwarden-password-manager";
           installation_mode = "force_installed";
           private_browsing = true;
         };
+
         "{74145f27-f039-47ce-a470-a662b129930a}" = {
           install_url = moz "clearurls";
           installation_mode = "force_installed";
           private_browsing = true;
         };
+
         "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
           install_url = moz "violentmonkey";
           installation_mode = "force_installed";
           private_browsing = true;
         };
 
-        # Extension configuration
         "3rdparty".Extensions = {
           "uBlock0@raymondhill.net".adminSettings = {
             userSettings = rec {

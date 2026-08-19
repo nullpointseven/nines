@@ -1,14 +1,11 @@
-{lib, ...}: {
+{lib}: {
   scanPaths = path:
-    builtins.map (f: (path + "/${f}")) (
+    builtins.map (f: path + "/${f}") (
       builtins.attrNames (
         lib.attrsets.filterAttrs (
-          path: _type:
-            (_type == "directory")
-            || (
-              (path != "default.nix")
-              && (lib.strings.hasSuffix ".nix" path)
-            )
+          name: type:
+            (type == "directory")
+            || ((name != "default.nix") && (lib.strings.hasSuffix ".nix" name))
         ) (builtins.readDir path)
       )
     );

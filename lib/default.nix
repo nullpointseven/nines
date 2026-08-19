@@ -1,3 +1,1 @@
-{lib, ...}: {
-  utils = import ./utils.nix;
-}
+{lib}: import ./utils.nix {inherit lib;}

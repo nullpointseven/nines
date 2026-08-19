@@ -1,0 +1,39 @@
+{pkgs, ...}: {
+  services.xserver = {
+    enable = true;
+    xkb.layout = "us";
+    xkb.options = "eurosign:e,caps:escape";
+    displayManager.lightdm.enable = true;
+  };
+
+  programs.hyprland = {
+    enable = true;
+    withUWSM = true;
+    xwayland.enable = true;
+  };
+
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+    fcitx5.addons = with pkgs; [
+      fcitx5-mozc
+      fcitx5-gtk
+    ];
+  };
+
+  xdg.portal = {
+    enable = true;
+    extraPortals = with pkgs; [
+      xdg-desktop-portal-hyprland
+      xdg-desktop-portal-gnome
+      xdg-desktop-portal-gtk
+    ];
+    config = {
+      common.default = ["*"];
+      hyprland.default = ["gtk" "hyprland"];
+    };
+    xdgOpenUsePortal = true;
+  };
+
+  fonts.packages = [pkgs.nerd-fonts.jetbrains-mono];
+}

@@ -1,20 +1,12 @@
 {
-  description = "Nullpointseven nix configuration";
+  description = "Nullpointseven NixOS and Home Manager configuration";
 
   inputs = {
-    # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    # You can access packages and modules from different nixpkgs revs
-    # at the same time. Here's an working example:
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
-    # Also see the 'unstable-packages' overlay at 'overlays/default.nix'.
 
-    # Home manager
-    home-manager.url = "github:nix-community/home-manager/release-26.05";
-    home-manager.inputs.nixpkgs.follows = "nixpkgs";
-
-    freesmlauncher = {
-      url = "github:FreesmTeam/FreesmLauncher";
+    home-manager = {
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -22,43 +14,55 @@
       url = "github:nix-community/disko/latest";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    freesmlauncher = {
+      url = "github:FreesmTeam/FreesmLauncher";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
-    disko,
-    home-manager,
-    freesmlauncher,
     ...
   } @ inputs: let
-    # Supported systems for your flake packages, shell, etc.
-    systems = [
-      "aarch64-linux"
-      "i686-linux"
-      "x86_64-linux"
-      "aarch64-darwin"
-      "x86_64-darwin"
-    ];
-    # This is a function that generates an attribute by calling a function you
-    # pass to it, with each system as an argument
-    forAllSystems = nixpkgs.lib.genAttrs systems;
-  in {
-    # Your custom packages
-    # Accessible through 'nix build', 'nix shell', etc
-    packages = forAllSystems (system: import ./pkgs nixpkgs.legacyPackages.${system});
-    # Formatter for your nix files, available through 'nix fmt'
-    # Other options beside 'alejandra' include 'nixpkgs-fmt'
-    formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
+    inherit (nixpkgs) lib;
+    myLib = import ./lib {inherit lib;};
 
-    # NixOS configuration entrypoint
+    systems = [
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
+    forEachSystem = lib.genAttrs systems;
+
+    mkPkgs = system:
+      import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+      };
+  in {
+    formatter = forEachSystem (system: (mkPkgs system).alejandra);
+
+    packages = forEachSystem (
+      system:
+        import ./pkgs {
+          pkgs = mkPkgs system;
+        }
+    );
+
     nixosConfigurations = {
-      horizon = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit inputs;};
-        modules = [
-          # > Our main nixos configuration file <
-          ./nixos/configuration.nix
-        ];
+      horizon = lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs myLib;};
+        modules = [./hosts/horizon];
+      };
+    };
+
+    homeConfigurations = {
+      "zero@horizon" = inputs.home-manager.lib.homeManagerConfiguration {
+        pkgs = mkPkgs "x86_64-linux";
+        extraSpecialArgs = {inherit inputs myLib;};
+        modules = [./home-manager/home.nix];
       };
     };
   };

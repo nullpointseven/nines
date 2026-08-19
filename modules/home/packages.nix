@@ -1,0 +1,29 @@
+{
+  inputs,
+  pkgs,
+  ...
+}: {
+  home.packages = with pkgs; [
+    darktable
+    rawtherapee
+    vesktop
+    libreoffice
+    tmux
+    lua
+    luarocks
+    mpv
+    unzip
+    python3
+    brightnessctl
+    playerctl
+    waybar
+    copyq
+    zathura
+    qimgv
+    slurp
+    grim
+    wl-clipboard
+    joplin-desktop
+    inputs.freesmlauncher.packages."x86_64-linux".freesmlauncher
+  ];
+}
