@@ -12,6 +12,8 @@
   imports = [
     # Include the results of the hardware scan.
     ./hardware-configuration.nix
+    inputs.disko.nixosModules.disko
+    ./disk-config.nix
 
     inputs.home-manager.nixosModules.home-manager
   ];
@@ -27,6 +29,7 @@
 
   home-manager = {
     extraSpecialArgs = {inherit inputs;};
+    backupFileExtension = "bak";
     users = {
       zero = {
         imports = [
@@ -123,6 +126,7 @@
   environment.variables.EDITOR = "nvim";
 
   environment.systemPackages = with pkgs; [
+    docker
     hyprland
     hypridle
     hyprlock

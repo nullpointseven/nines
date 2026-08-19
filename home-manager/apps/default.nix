@@ -1,3 +1,3 @@
 {
-  imports = [./firefox.nix ./hyprland.nix ./nvim.nix];
+  imports = [ ./firefox ./hyprland.nix ./nvim.nix];
 }

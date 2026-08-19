@@ -27,7 +27,7 @@
 
       # Access Restrictions
       BlockAboutConfig = false;
-      BlockAboutProfiles = true;
+      BlockAboutProfiles = false;
       BlockAboutSupport = true;
 
       # UI and Behavior
@@ -78,16 +78,6 @@
         };
         "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
           install_url = moz "violentmonkey";
-          installation_mode = "force_installed";
-          private_browsing = true;
-        };
-        "{9063c2e9-e07c-4c2c-9646-cfe7ca8d0498}" = {
-          install_url = moz "old-reddit-redirect";
-          installation_mode = "force_installed";
-          private_browsing = true;
-        };
-        "jid1-xUfzOsOFlzSOXg@jetpack" = {
-          install_url = moz "reddit-enhancement-suite";
           installation_mode = "force_installed";
           private_browsing = true;
         };
