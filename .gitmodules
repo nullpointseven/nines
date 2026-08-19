@@ -1,6 +1,3 @@
-[submodule "period"]
-	path = period
-	url = git@github.com:nullpointseven/period.git
 [submodule "dotfiles"]
 	path = dotfiles
 	url = git@github.com:nullpointseven/period.git
