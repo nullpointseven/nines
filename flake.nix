@@ -65,5 +65,31 @@
         modules = [./home-manager/home.nix];
       };
     };
+
+    apps = lib.genAttrs ["x86_64-linux"] (system: let
+      pkgs = mkPkgs system;
+      installScript = pkgs.writeShellScriptBin "install-horizon" ''
+        set -euo pipefail
+        device="/dev/nvme0n1"
+        if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
+          device="$1"
+          shift
+        fi
+        exec ${inputs.disko.packages.${system}.disko-install}/bin/disko-install \
+          --write-efi-boot-entries \
+          --flake ${self}#horizon \
+          --disk main "$device" \
+          "$@"
+      '';
+    in {
+      install = {
+        type = "app";
+        program = "${installScript}/bin/install-horizon";
+        meta = {
+          description = "Install horizon with disko-formatting from the NixOS installer";
+          mainProgram = "install-horizon";
+        };
+      };
+    });
   };
 }
