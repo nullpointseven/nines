@@ -17,8 +17,8 @@
     intel.enable = true;
     networkMount = {
       enable = true;
-      device = "//192.168.1.100/data";
-      credentialsFile = "/run/secrets/nas-credentials";
+      device = "192.168.1.100:/data";
+      fsType = "nfs";
     };
   };
 

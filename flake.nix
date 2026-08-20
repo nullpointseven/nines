@@ -79,31 +79,74 @@
 
     apps = lib.genAttrs ["x86_64-linux"] (system: let
       pkgs = mkPkgs system;
+      disko = inputs.disko.packages.${system}.disko;
       installScript = pkgs.writeShellScriptBin "install" ''
         set -euo pipefail
+
+        PATH="${pkgs.nix}/bin:${pkgs.nixos-install-tools}/bin:${pkgs.coreutils}/bin:${pkgs.util-linux}/bin:$PATH"
+
         host="''${INSTALL_HOST:-horizon}"
         device="/dev/nvme0n1"
+        extra_args=("$@")
+
+        # Parse optional positional host/device arguments.
+        # Usage: install [HOST] [DEVICE] [nixos-install flags...]
+        # If the first non-flag arg starts with /dev it is the device and the host stays at the default.
         if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
-          device="$1"
-          shift
+          if [[ "$1" =~ ^/dev ]]; then
+            device="$1"
+            extra_args=("''${@:2}")
+          else
+            host="$1"
+            if [[ $# -gt 1 && ! "$2" =~ ^- ]]; then
+              device="$2"
+              extra_args=("''${@:3}")
+            else
+              extra_args=("''${@:2}")
+            fi
+          fi
         fi
-        extraArgs=()
-        if [ "$host" = "horizon" ]; then
-          extraArgs+=(--extra-files ${self}/dotfiles /home/zero/.config/nixos/dotfiles)
+
+        mount=/mnt
+        disko_config="${self}/hosts/''${host}/disk-config.nix"
+        disko_disks="[\"$device\"]"
+
+        echo "[install] partitioning and mounting with disko for host '$host' on '$device'..."
+        DISKO_SKIP_SWAP=1 ${disko}/bin/disko \
+          --mode destroy,format,mount \
+          --root-mountpoint "$mount" \
+          --arg disks "$disko_disks" \
+          --yes-wipe-all-disks \
+          "$disko_config"
+
+        if [[ "$host" == "horizon" ]]; then
+          echo "[install] copying dotfiles into target home..."
+          target="$mount/home/zero/.config/nixos/dotfiles"
+          mkdir -p "$target"
+          cp -r "${self}/dotfiles/." "$target/"
         fi
-        exec ${inputs.disko.packages.${system}.disko-install}/bin/disko-install \
-          --write-efi-boot-entries \
-          --flake ${self}#"$host" \
-          --disk main "$device" \
-          "''${extraArgs[@]}" \
-          "$@"
+
+        echo "[install] building system closure for '$host'..."
+        closure=$(${pkgs.nix}/bin/nix --extra-experimental-features 'nix-command flakes' build \
+          --no-link \
+          --no-write-lock-file \
+          --print-out-paths \
+          "${self}#nixosConfigurations.''${host}.config.system.build.toplevel")
+
+        echo "[install] running nixos-install in $mount (nixos-install will chroot into the install mount)..."
+        nixos-install \
+          --no-channel-copy \
+          --no-root-passwd \
+          --system "$closure" \
+          --root "$mount" \
+          "''${extra_args[@]}"
       '';
     in {
       install = {
         type = "app";
         program = "${installScript}/bin/install";
         meta = {
-          description = "Install a NixOS host with disko-formatting from the NixOS installer";
+          description = "Install a NixOS host: disko partitions/mounts, then nixos-install chroots and installs";
           mainProgram = "install";
         };
       };
