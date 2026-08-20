@@ -14,6 +14,10 @@
   networking.hostName = "horizon";
 
   my.desktop.enable = true;
+  my.tailscale = {
+    enable = true;
+    useNftables = true;
+  };
 
   home-manager = {
     useGlobalPkgs = true;
