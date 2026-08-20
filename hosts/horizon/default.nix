@@ -13,6 +13,8 @@
 
   networking.hostName = "horizon";
 
+  my.desktop.enable = true;
+
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;

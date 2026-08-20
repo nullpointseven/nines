@@ -15,6 +15,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     freesmlauncher = {
       url = "github:FreesmTeam/FreesmLauncher";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -56,6 +61,12 @@
         specialArgs = {inherit inputs myLib;};
         modules = [./hosts/horizon];
       };
+
+      servitor = lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs myLib;};
+        modules = [./hosts/servitor];
+      };
     };
 
     homeConfigurations = {
@@ -68,27 +79,32 @@
 
     apps = lib.genAttrs ["x86_64-linux"] (system: let
       pkgs = mkPkgs system;
-      installScript = pkgs.writeShellScriptBin "install-horizon" ''
+      installScript = pkgs.writeShellScriptBin "install" ''
         set -euo pipefail
+        host="''${INSTALL_HOST:-horizon}"
         device="/dev/nvme0n1"
         if [[ $# -gt 0 && ! "$1" =~ ^- ]]; then
           device="$1"
           shift
         fi
+        extraArgs=()
+        if [ "$host" = "horizon" ]; then
+          extraArgs+=(--extra-files ${self}/dotfiles /home/zero/.config/nixos/dotfiles)
+        fi
         exec ${inputs.disko.packages.${system}.disko-install}/bin/disko-install \
           --write-efi-boot-entries \
-          --flake ${self}#horizon \
+          --flake ${self}#"$host" \
           --disk main "$device" \
-          --extra-files ${self}/dotfiles /home/zero/.config/nixos/dotfiles \
+          "''${extraArgs[@]}" \
           "$@"
       '';
     in {
       install = {
         type = "app";
-        program = "${installScript}/bin/install-horizon";
+        program = "${installScript}/bin/install";
         meta = {
-          description = "Install horizon with disko-formatting from the NixOS installer";
-          mainProgram = "install-horizon";
+          description = "Install a NixOS host with disko-formatting from the NixOS installer";
+          mainProgram = "install";
         };
       };
     });
