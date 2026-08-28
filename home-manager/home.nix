@@ -8,4 +8,6 @@
     homeDirectory = "/home/zero";
     stateVersion = "26.05";
   };
+
+  services.udiskie.enable = true;
 }

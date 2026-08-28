@@ -8,6 +8,7 @@
     lsof
     sysstat
     usbutils
+	udiskie
     udisks2
     lm_sensors
     wget
