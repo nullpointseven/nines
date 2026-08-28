@@ -2,18 +2,15 @@
   inputs,
   pkgs,
   ...
-}: let
-  logseq-patch = pkgs.logseq.override {
-	electron_27 = pkgs.electron_39;
-  };
-in {
+}: {
   home.packages = with pkgs; [
+    filen-desktop
     darktable
+	logseq
     rawtherapee
     vesktop
     libreoffice
     tmux
-	logseq-patch
     lua
     luarocks
     mpv
