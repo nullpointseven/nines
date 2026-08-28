@@ -1,7 +1,9 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
+    appimage-run
     docker
     ethtool
+	exfat
     pciutils
     strace
     ltrace
