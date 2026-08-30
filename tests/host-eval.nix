@@ -166,4 +166,9 @@ in
         noDuplicates = true;
       };
     };
+
+    testDeusVaultMdadmConfHasAlertHandler = {
+      expr = self.nixosConfigurations.deus-vault.config.boot.swraid.mdadmConf;
+      expected = "PROGRAM /bin/true";
+    };
   }

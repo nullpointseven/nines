@@ -21,6 +21,11 @@
     grub.enable = true;
   };
 
+  # disko enables boot.swraid for the mdadm array; mdadm requires a
+  # MAILADDR or PROGRAM in /etc/mdadm.conf or the mdmon service crashes.
+  # PROGRAM /bin/true is a no-op alert handler (no mail setup needed).
+  boot.swraid.mdadmConf = "PROGRAM /bin/true";
+
   my = {
     docker.enable = true;
     tailscale = {
