@@ -154,16 +154,28 @@ in
         systemdBoot = loader.systemd-boot.enable;
         grub = loader.grub.enable;
         # disko derives the GRUB devices from the disk config's EF02
-        # partitions; they must cover all four member disks, without
-        # duplicates.
+        # partitions; only the OS drive (main, /dev/sda) has one.
         grubDevices = builtins.sort (a: b: a < b) loader.grub.devices;
         noDuplicates = builtins.length loader.grub.devices == builtins.length (lib.lists.unique loader.grub.devices);
       };
       expected = {
         systemdBoot = false;
         grub = true;
-        grubDevices = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd"];
+        grubDevices = ["/dev/sda"];
         noDuplicates = true;
+      };
+    };
+
+    testDeusVaultHasRootAndDataFileSystems = {
+      expr = let
+        fs = self.nixosConfigurations.deus-vault.config.fileSystems;
+      in {
+        hasRoot = fs ? "/";
+        hasData = fs ? "/data";
+      };
+      expected = {
+        hasRoot = true;
+        hasData = true;
       };
     };
 

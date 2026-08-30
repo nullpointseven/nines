@@ -1,9 +1,9 @@
 # VM integration test for hosts/deus-vault/disk-config.nix: boots a test VM
-# with four virtual disks, runs disko's destroy/format/mount on the config and
-# verifies the mdadm RAID5 array is assembled and the btrfs /data filesystem
-# is mounted. Boot is skipped (testBoot = false) since the config uses LUKS
-# for other hosts and MBR-only for this one; this still exercises the whole
-# disko pipeline against the real config.
+# with five virtual disks (OS drive + four RAID members), runs disko's
+# destroy/format/mount on the config and verifies the mdadm RAID5 array is
+# assembled with all four members and both the OS root and the /data btrfs
+# volumes are mounted. Boot is skipped (testBoot = false); this still
+# exercises the whole disko pipeline against the real config.
 {
   pkgs,
   lib ? pkgs.lib,
@@ -14,7 +14,7 @@
 in
   diskoLib.testLib.makeDiskoTest {
     inherit pkgs;
-    name = "deus-vault-mdadm-raid5";
+    name = "deus-vault-os-plus-mdadm-raid5";
     disko-config = ../../hosts/deus-vault/disk-config.nix;
     efi = false;
     testBoot = false;
@@ -28,9 +28,11 @@ in
       active = machine.succeed("mdadm --detail /dev/md/raid5 | grep -c 'active sync'")
       assert active.strip() == "4", f"expected 4 active drives in raid5, got: {active}"
 
-      # the btrfs filesystem must be mounted as the root of the layout
+      # the OS root (on the main disk) and the /data volume (on the array)
+      # must both be mounted as btrfs
       machine.succeed("mountpoint /mnt")
-      fstype = machine.succeed("df -T /mnt")
-      assert "btrfs" in fstype, f"expected btrfs on /mnt, got: {fstype}"
+      machine.succeed("mountpoint /mnt/data")
+      fstype = machine.succeed("df -T /mnt /mnt/data")
+      assert fstype.count("btrfs") == 2, f"expected btrfs on both mounts, got: {fstype}"
     '';
   }

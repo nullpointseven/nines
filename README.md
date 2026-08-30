@@ -10,7 +10,7 @@ Home Manager, Disko, sops-nix and a few custom NixOS modules.
 |------|------|------------|
 | `horizon` | Desktop | AMD, Hyprland desktop (X/Wayland, LightDM, fcitx5, Steam), Tailscale (nftables), Home Manager for `zero` |
 | `servitor` | Laptop | Intel (iGPU/VA-API), TLP power management + lid handling, Docker, Tailscale, NFS network mount, sops-nix secrets |
-| `deus-vault` | Server | 4-drive mdadm RAID5 (btrfs), GRUB on MBR, Docker, Tailscale (nftables), Intel, TLP |
+| `deus-vault` | Server | OS on `/dev/sda` (btrfs), 4-drive mdadm RAID5 (btrfs) at `/data`, GRUB on MBR, Docker, Tailscale (nftables), Intel, TLP |
 
 All hosts are `x86_64-linux`; the flake also evaluates pure checks for
 `aarch64-linux`.

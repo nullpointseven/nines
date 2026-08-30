@@ -145,21 +145,38 @@ in
     };
 
     # ------------------------------------------------------------------
-    # deus-vault: 4-disk mdadm RAID5 array with btrfs on top, grub MBR.
+    # deus-vault: OS drive on /dev/sda (btrfs root), 4-disk mdadm RAID5
+    # array (/dev/sdb..sde) with btrfs on top at /data, grub MBR.
     # ------------------------------------------------------------------
-    testDeusVaultHasFourDisks = {
+    testDeusVaultHasFiveDisks = {
       expr = builtins.attrNames deusVault.disk;
-      expected = ["disk1" "disk2" "disk3" "main"];
+      expected = ["disk1" "disk2" "disk3" "disk4" "main"];
     };
 
     testDeusVaultDiskDevices = {
-      expr = builtins.map (d: deusVault.disk.${d}.device) ["main" "disk1" "disk2" "disk3"];
-      expected = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd"];
+      expr = builtins.map (d: deusVault.disk.${d}.device) ["main" "disk1" "disk2" "disk3" "disk4"];
+      expected = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd" "/dev/sde"];
     };
 
-    # Every one of the four disks must carry an mdraid member of the same
-    # `raid5` array (a disk that is not a member would silently shrink the
-    # array to 3 drives).
+    testDeusVaultMainDiskIsOsDrive = {
+      expr = let
+        main = deusVault.disk.main;
+        root = main.content.partitions.root.content;
+      in {
+        device = main.device;
+        rootFormat = root.format;
+        rootMountpoint = root.mountpoint;
+      };
+      expected = {
+        device = "/dev/sda";
+        rootFormat = "btrfs";
+        rootMountpoint = "/";
+      };
+    };
+
+    # Every one of the four RAID drives must carry an mdraid member of the
+    # same `raid5` array (a disk that is not a member would silently shrink
+    # the array to 3 drives).
     testDeusVaultAllFourDisksJoinRaid5 = {
       expr = builtins.map (d: let
         member = deusVault.disk.${d}.content.partitions.mdadm.content;
@@ -167,13 +184,8 @@ in
         device = deusVault.disk.${d}.device;
         type = member.type;
         array = member.name;
-      }) ["main" "disk1" "disk2" "disk3"];
+      }) ["disk1" "disk2" "disk3" "disk4"];
       expected = [
-        {
-          device = "/dev/sda";
-          type = "mdraid";
-          array = "raid5";
-        }
         {
           device = "/dev/sdb";
           type = "mdraid";
@@ -189,22 +201,34 @@ in
           type = "mdraid";
           array = "raid5";
         }
+        {
+          device = "/dev/sde";
+          type = "mdraid";
+          array = "raid5";
+        }
       ];
+    };
+
+    # The OS drive must not be a RAID member.
+    testDeusVaultOsDriveIsNotRaidMember = {
+      expr = deusVault.disk.main.content.partitions ? mdadm;
+      expected = false;
     };
 
     testDeusVaultGrubMbrPartitions = {
       expr = let
         main = deusVault.disk.main.content.partitions;
-        other = deusVault.disk.disk1.content.partitions;
+        raidDisk = deusVault.disk.disk1.content.partitions;
       in {
         mainType = main.boot.type;
         mainSize = main.boot.size;
-        disk1Type = other.boot.type;
+        # RAID drives only carry the mdraid member, no boot partition
+        raidDiskPartitions = builtins.attrNames raidDisk;
       };
       expected = {
         mainType = "EF02";
         mainSize = "1M";
-        disk1Type = "EF02";
+        raidDiskPartitions = ["mdadm"];
       };
     };
 
@@ -224,7 +248,7 @@ in
       expected = ["--assume-clean"];
     };
 
-    testDeusVaultRootFilesystem = {
+    testDeusVaultDataFilesystem = {
       expr = let
         primary = deusVault.mdadm.raid5.content.partitions.primary;
       in {
@@ -233,7 +257,7 @@ in
       };
       expected = {
         format = "btrfs";
-        mountpoint = "/";
+        mountpoint = "/data";
       };
     };
   }

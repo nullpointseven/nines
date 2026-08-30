@@ -1,6 +1,7 @@
 {lib, ...}: {
   disko.devices = {
     disk = {
+      # OS drive: GRUB MBR boot partition + btrfs root.
       main = {
         type = "disk";
         device = "/dev/sda";
@@ -11,26 +12,24 @@
               size = "1M";
               type = "EF02"; # for grub MBR
             };
-            mdadm = {
+            root = {
               size = "100%";
               content = {
-                type = "mdraid";
-                name = "raid5";
+                type = "filesystem";
+                format = "btrfs";
+                mountpoint = "/";
               };
             };
           };
         };
       };
+      # Four RAID5 member drives (no boot partitions; the array is data only).
       disk1 = {
         type = "disk";
         device = "/dev/sdb";
         content = {
           type = "gpt";
           partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
             mdadm = {
               size = "100%";
               content = {
@@ -47,10 +46,6 @@
         content = {
           type = "gpt";
           partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
             mdadm = {
               size = "100%";
               content = {
@@ -67,10 +62,22 @@
         content = {
           type = "gpt";
           partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
+            mdadm = {
+              size = "100%";
+              content = {
+                type = "mdraid";
+                name = "raid5";
+              };
             };
+          };
+        };
+      };
+      disk4 = {
+        type = "disk";
+        device = "/dev/sde";
+        content = {
+          type = "gpt";
+          partitions = {
             mdadm = {
               size = "100%";
               content = {
@@ -94,7 +101,7 @@
               content = {
                 type = "filesystem";
                 format = "btrfs";
-                mountpoint = "/";
+                mountpoint = "/data";
               };
             };
           };
