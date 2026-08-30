@@ -13,6 +13,17 @@
 
   networking.hostName = "deus-vault";
 
+  # The disk config takes its devices as an argument; provide the defaults so
+  # the module evaluates (the `install` app overrides these with the actually
+  # selected drives when building the system, see flake.nix).
+  _module.args.disks = [
+    "/dev/sda"
+    "/dev/sdb"
+    "/dev/sdc"
+    "/dev/sdd"
+    "/dev/sde"
+  ];
+
   # The disk layout (disk-config.nix) uses GPT/MBR with EF02 partitions and
   # GRUB, not the EFI systemd-boot default from modules/nixos/boot.nix.
   # GRUB devices are derived from the disk config by the disko module.

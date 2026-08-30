@@ -83,6 +83,72 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
     && echo "PASS: explicit-host-overrides-env" \
     || { echo "FAIL: explicit-host-overrides-env (got host='$HOST')"; failures=$((failures + 1)); }
 
+  # --- disko_disks_json ---
+  run_json() {
+    local name="$1" expected="$2"
+    shift 2
+    local out
+    if out=$(disko_disks_json "$@" 2>/dev/null); then
+      if [[ "$out" == "$expected" ]]; then
+        echo "PASS: $name"
+      else
+        echo "FAIL: $name (got '$out', expected '$expected')"
+        failures=$((failures + 1))
+      fi
+    else
+      echo "FAIL: $name (expected success)"
+      failures=$((failures + 1))
+    fi
+  }
+
+  run_json "json-single" '["/dev/sda"]' /dev/sda
+  run_json "json-five" '["/dev/sda","/dev/sdb","/dev/sdc","/dev/sdd","/dev/sde"]' /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde
+  run_json "json-by-id" '["/dev/disk/by-id/ata-FOO","/dev/disk/by-id/ata-BAR"]' /dev/disk/by-id/ata-FOO /dev/disk/by-id/ata-BAR
+
+  # invalid: not an absolute /dev path
+  if got=$(disko_disks_json "sda" 2>/dev/null); then
+    echo "FAIL: json-rejects-relative-path (got '$got')"
+    failures=$((failures + 1))
+  else
+    echo "PASS: json-rejects-relative-path"
+  fi
+
+  # invalid: embedded quote
+  if got=$(disko_disks_json '/dev/sd"a' 2>/dev/null); then
+    echo "FAIL: json-rejects-quote (got '$got')"
+    failures=$((failures + 1))
+  else
+    echo "PASS: json-rejects-quote"
+  fi
+
+  # --- select_deus_vault_disks (interactive disk identification) ---
+  stub_dir=$(mktemp -d)
+  # avoid a heredoc: alejandra re-indents Nix string contents and would
+  # break the <<EOF terminator; /bin/sh shebang: /usr/bin/env is absent
+  # in the Nix build sandbox
+  printf '%s\n' \
+    '#!/bin/sh' \
+    "echo 'NAME SIZE MODEL SERIAL TRAN PATH MOUNTPOINTS'" \
+    "echo 'sda  4T   WDC   WD40 FOO  /dev/sda '" \
+    "echo 'sdb  4T   WDC   WD40 BAR  /dev/sdb '" > "$stub_dir/lsblk"
+  chmod +x "$stub_dir/lsblk"
+  PATH="$stub_dir:$PATH" got=$(
+    printf '%s\n' \
+      /dev/disk/by-id/ata-OS \
+      /dev/disk/by-id/ata-R1 \
+      /dev/disk/by-id/ata-R2 \
+      /dev/disk/by-id/ata-R3 \
+      /dev/disk/by-id/ata-R4 |
+      HOST=deus-vault select_deus_vault_disks
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2","/dev/disk/by-id/ata-R3","/dev/disk/by-id/ata-R4"]' ]]; then
+    echo "PASS: select-deus-vault-disks"
+  else
+    echo "FAIL: select-deus-vault-disks (got '$got')"
+    failures=$((failures + 1))
+  fi
+  rm -rf "$stub_dir"
+
   if [[ $failures -gt 0 ]]; then
     echo "$failures install-args test(s) failed" >&2
     exit 1

@@ -14,6 +14,7 @@
   helpers = import ./lib.nix {inherit pkgs lib;};
   evalNixOS = helpers.evalNixOS;
   runUnitTests = helpers.runUnitTests;
+  testThrows = helpers.testThrows;
 
   diskoModule = inputs.disko.nixosModules.disko;
 
@@ -30,7 +31,8 @@
 
   horizon = evalDisko (import ../hosts/horizon/disk-config.nix) ["/dev/nvme0n1"];
   servitor = evalDisko (import ../hosts/servitor/disk-config.nix) ["/dev/nvme0n1"];
-  deusVault = evalDisko (import ../hosts/deus-vault/disk-config.nix) [];
+  deusVaultDefaultDisks = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd" "/dev/sde"];
+  deusVault = evalDisko (import ../hosts/deus-vault/disk-config.nix) deusVaultDefaultDisks;
 in
   runUnitTests "disko-eval" {
     # ------------------------------------------------------------------
@@ -158,6 +160,34 @@ in
       expected = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd" "/dev/sde"];
     };
 
+    # The install app passes the actual devices (by-id) at install time; the
+    # config must map the first disk to the OS drive and the rest to RAID.
+    testDeusVaultAcceptsStableDiskPaths = {
+      expr = let
+        cfg = evalDisko (import ../hosts/deus-vault/disk-config.nix) [
+          "/dev/disk/by-id/ata-OS"
+          "/dev/disk/by-id/ata-R1"
+          "/dev/disk/by-id/ata-R2"
+          "/dev/disk/by-id/ata-R3"
+          "/dev/disk/by-id/ata-R4"
+        ];
+      in {
+        os = cfg.disk.main.device;
+        raid = builtins.map (d: cfg.disk.${d}.device) ["disk1" "disk2" "disk3" "disk4"];
+      };
+      expected = {
+        os = "/dev/disk/by-id/ata-OS";
+        raid = ["/dev/disk/by-id/ata-R1" "/dev/disk/by-id/ata-R2" "/dev/disk/by-id/ata-R3" "/dev/disk/by-id/ata-R4"];
+      };
+    };
+
+    testDeusVaultRejectsWrongDiskCount = testThrows (
+      (import ../hosts/deus-vault/disk-config.nix {
+        inherit lib;
+        disks = ["/dev/sda"];
+      }).disko.devices.disk.disk1.device
+    );
+
     testDeusVaultMainDiskIsOsDrive = {
       expr = let
         main = deusVault.disk.main;
@@ -243,9 +273,11 @@ in
       };
     };
 
+    # --bitmap=internal is required: it enables the write-intent bitmap and
+    # keeps mdadm's array creation non-interactive (see vm-deus-vault-mdadm-create).
     testDeusVaultMdadmExtraArgs = {
       expr = deusVault.mdadm.raid5.extraArgs;
-      expected = ["--assume-clean"];
+      expected = ["--assume-clean" "--bitmap=internal"];
     };
 
     testDeusVaultDataFilesystem = {

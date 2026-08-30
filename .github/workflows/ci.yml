@@ -78,4 +78,5 @@ jobs:
           nix build \
             .#checks.x86_64-linux.vm-tailscale \
             .#checks.x86_64-linux.vm-network-mount \
-            .#checks.x86_64-linux.vm-disko-deus-vault
+            .#checks.x86_64-linux.vm-disko-deus-vault \
+            .#checks.x86_64-linux.vm-deus-vault-mdadm-create

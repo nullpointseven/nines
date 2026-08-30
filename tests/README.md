@@ -36,13 +36,14 @@ minutes of build time on first run).
 | `module-eval` | NixOS module evaluation | Every custom `my.*` module (`docker`, `tailscale`, `networkMount`, `intel`, `power`, `desktop`) evaluated against the full NixOS option set: defaults, enabled behaviour, edge cases (custom users, CIFS credentials, nftables backend, firewall wiring) and failure cases (wrong option types, undeclared options rejected via `_module.check`) |
 | `disko-eval` | disko module evaluation | All three `hosts/*/disk-config.nix` validate against disko's own type system and produce the expected partition/subvolume/raid layout |
 | `overlay` | evaluation | The `unstable` overlay adds a distinct package set |
-| `install-args` | shell test | Argument parsing in `scripts/install-lib.sh` (host/device/flags matrix, `INSTALL_HOST` handling) |
+| `install-args` | shell test | `scripts/install-lib.sh`: argument parsing (host/device/flags matrix, `INSTALL_HOST`), `disko_disks_json` validation/rendering, and the interactive deus-vault disk-selection prompt |
 | `install-app-syntax` | shell check | The generated `install` app is syntactically valid bash |
 | `host-eval` | configuration evaluation | Each `nixosConfiguration` (horizon/servitor/deus-vault) evaluates with the expected hostname, stateVersion, custom-module flags and service wiring |
 | `home-eval` | home-manager evaluation | The home configuration evaluates: firefox policies/extensions/search/containers, git config, udiskie/mpris-proxy services, and `home.packages` resolves |
 | `vm-tailscale` | NixOS VM test | Boots a machine with `my.tailscale` + nftables backend: tailscaled runs, nftables backend env is set, firewall opens the tailscale port/interface |
 | `vm-network-mount` | NixOS VM test | Two machines: a real NFS server and a client using `my.networkMount`; verifies the automount fstab entry actually mounts the export and writes reach the server |
-| `vm-disko-deus-vault` | disko VM test | Runs disko destroy/format/mount for the deus-vault mdadm RAID5 config on virtual disks; verifies the array is assembled and btrfs is mounted |
+| `vm-disko-deus-vault` | disko VM test | Runs disko destroy/format/mount for the deus-vault config on virtual disks (OS drive + 4 RAID members); verifies the array is assembled with 4 active drives and both OS root and `/data` btrfs volumes are mounted |
+| `vm-deus-vault-mdadm-create` | NixOS VM test | Replicates `mdadm --create` on disks with leftover partition tables (reused drives); verifies creation does not abort on interactive prompts and the write-intent bitmap is enabled |
 
 ## Conventions
 

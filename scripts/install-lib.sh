@@ -33,3 +33,46 @@ parse_install_args() {
     fi
   fi
 }
+
+# Render a disko `--arg disks` JSON array from device paths, validating that
+# each is an absolute /dev path. Prints the JSON on stdout; errors on stderr.
+# Prefer stable paths like /dev/disk/by-id/... over raw /dev/sdX names.
+disko_disks_json() {
+  local json="" dev
+  for dev in "$@"; do
+    if [[ ! "$dev" =~ ^/dev/ ]]; then
+      echo "error: disk device '$dev' must be an absolute /dev path (prefer /dev/disk/by-id/...)" >&2
+      return 1
+    fi
+    if [[ "$dev" == *'"'* || "$dev" == *'\'* ]]; then
+      echo "error: disk device '$dev' contains invalid characters" >&2
+      return 1
+    fi
+    json+="\"$dev\","
+  done
+  echo "[${json%,}]"
+}
+
+# deus-vault has five disks (1 OS drive + 4 RAID5 members) whose raw /dev/sdX
+# names cannot be mapped to physical drives at installer boot. Print a disk
+# inventory and ask which device is which, then print a disko `--arg disks`
+# JSON array on stdout. The inventory goes to stderr so the JSON stays clean.
+# Set DEUS_VAULT_DISKS (space separated, 5 devices) to skip the prompt.
+select_deus_vault_disks() {
+  local labels=("OS drive" "RAID member 1" "RAID member 2" "RAID member 3" "RAID member 4")
+  local disks=() dev i
+
+  echo "[install] $HOST needs 5 disks: 1 OS drive + 4 RAID5 members." >&2
+  echo "[install] Identify the drives by MODEL/SERIAL (printed on the hardware):" >&2
+  lsblk -o NAME,SIZE,MODEL,SERIAL,TRAN,PATH,MOUNTPOINTS >&2
+  echo >&2
+  echo "[install] Stable device names (preferred; match the SERIAL above):" >&2
+  ls -l /dev/disk/by-id/ 2>/dev/null | grep -v -- '-part[0-9]' >&2 || true
+  echo >&2
+
+  for i in 0 1 2 3 4; do
+    read -r -p "[install] ${labels[$i]} (e.g. /dev/disk/by-id/...): " dev
+    disks+=("$dev")
+  done
+  disko_disks_json "${disks[@]}"
+}

@@ -1,10 +1,24 @@
-{lib, ...}: {
+{
+  lib,
+  # All five devices, in order: OS drive first, then the four RAID5 members.
+  # At installer boot the raw /dev/sdX names do not identify the physical
+  # drives, so pass stable paths (e.g. /dev/disk/by-id/...) — the `install`
+  # app collects them interactively (see scripts/install-lib.sh).
+  disks ? [
+    "/dev/sda"
+    "/dev/sdb"
+    "/dev/sdc"
+    "/dev/sdd"
+    "/dev/sde"
+  ],
+  ...
+}: {
   disko.devices = {
     disk = {
       # OS drive: GRUB MBR boot partition + btrfs root.
       main = {
         type = "disk";
-        device = "/dev/sda";
+        device = assert lib.length disks == 5; builtins.elemAt disks 0;
         content = {
           type = "gpt";
           partitions = {
@@ -23,10 +37,9 @@
           };
         };
       };
-      # Four RAID5 member drives (no boot partitions; the array is data only).
       disk1 = {
         type = "disk";
-        device = "/dev/sdb";
+        device = assert lib.length disks == 5; builtins.elemAt disks 1;
         content = {
           type = "gpt";
           partitions = {
@@ -42,7 +55,7 @@
       };
       disk2 = {
         type = "disk";
-        device = "/dev/sdc";
+        device = assert lib.length disks == 5; builtins.elemAt disks 2;
         content = {
           type = "gpt";
           partitions = {
@@ -58,7 +71,7 @@
       };
       disk3 = {
         type = "disk";
-        device = "/dev/sdd";
+        device = assert lib.length disks == 5; builtins.elemAt disks 3;
         content = {
           type = "gpt";
           partitions = {
@@ -74,7 +87,7 @@
       };
       disk4 = {
         type = "disk";
-        device = "/dev/sde";
+        device = assert lib.length disks == 5; builtins.elemAt disks 4;
         content = {
           type = "gpt";
           partitions = {
@@ -106,7 +119,14 @@
             };
           };
         };
-        extraArgs = ["--assume-clean"];
+        # --assume-clean: skip the initial resync when creating a fresh array.
+        # --bitmap=internal: enable the write-intent bitmap (faster recovery
+        # after a drive failure) and skip mdadm's interactive bitmap prompt.
+        # disko pipes a single 'y' to mdadm, which then answers the
+        # "partition table exists... Continue creating array [y/N]?" prompt
+        # that appears when the member partitions contain leftover signatures
+        # (without the bitmap flag, that second prompt reads EOF and aborts).
+        extraArgs = ["--assume-clean" "--bitmap=internal"];
       };
     };
   };

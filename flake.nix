@@ -80,6 +80,9 @@
           inherit pkgs lib;
         });
         vm-disko-deus-vault = import ./tests/vm/disko-deus-vault.nix testArgs;
+        vm-deus-vault-mdadm-create = pkgs.testers.runNixOSTest (import ./tests/vm/deus-vault-mdadm-create.nix {
+          inherit pkgs lib;
+        });
       };
     in
       fast // x86Only;
@@ -136,9 +139,27 @@
 
         mount=/mnt
         disko_config="${self}/hosts/$HOST/disk-config.nix"
-        disko_disks="[\"$DEVICE\"]"
 
-        echo "[install] partitioning and mounting with disko for host '$HOST' on '$DEVICE'..."
+        if [[ "$HOST" == "deus-vault" ]]; then
+          # deus-vault needs 5 disks (1 OS drive + 4 RAID5 members). At
+          # installer boot the raw /dev/sdX names don't identify the drives,
+          # so print an inventory and ask which is which. Set
+          # DEUS_VAULT_DISKS (space separated, 5 devices) to skip the prompt.
+          if [[ -n "''${DEUS_VAULT_DISKS:-}" ]]; then
+            read -r -a deus_vault_disks <<< "$DEUS_VAULT_DISKS"
+            if [[ "''${#deus_vault_disks[@]}" -ne 5 ]]; then
+              echo "[install] error: DEUS_VAULT_DISKS must list exactly 5 devices (OS drive + 4 RAID members)" >&2
+              exit 1
+            fi
+            disko_disks="$(disko_disks_json "''${deus_vault_disks[@]}")"
+          else
+            disko_disks="$(select_deus_vault_disks)"
+          fi
+        else
+          disko_disks="$(disko_disks_json "$DEVICE")"
+        fi
+
+        echo "[install] partitioning and mounting with disko for host '$HOST' on $disko_disks..."
         DISKO_SKIP_SWAP=1 ${disko}/bin/disko \
           --mode destroy,format,mount \
           --root-mountpoint "$mount" \
@@ -154,11 +175,22 @@
         fi
 
         echo "[install] building system closure for '$HOST'..."
-        closure=$(${pkgs.nix}/bin/nix --extra-experimental-features 'nix-command flakes' build \
-          --no-link \
-          --no-write-lock-file \
-          --print-out-paths \
-          "${self}#nixosConfigurations.$HOST.config.system.build.toplevel")
+        if [[ "$HOST" == "deus-vault" ]]; then
+          # Inject the disks selected above into the evaluation so the baked-in
+          # GRUB devices target the real OS drive (the raw defaults are not
+          # reliable at install time).
+          closure=$(${pkgs.nix}/bin/nix --extra-experimental-features 'nix-command flakes' build \
+            --no-link \
+            --no-write-lock-file \
+            --print-out-paths \
+            --expr "let f = builtins.getFlake \"${self}\"; in (f.nixosConfigurations.$HOST.extendModules { modules = [ ({ lib, ... }: { _module.args.disks = lib.mkForce $disko_disks; }) ]; }).config.system.build.toplevel")
+        else
+          closure=$(${pkgs.nix}/bin/nix --extra-experimental-features 'nix-command flakes' build \
+            --no-link \
+            --no-write-lock-file \
+            --print-out-paths \
+            "${self}#nixosConfigurations.$HOST.config.system.build.toplevel")
+        fi
 
         echo "[install] running nixos-install in $mount (nixos-install will chroot into the install mount)..."
         nixos-install \

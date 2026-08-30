@@ -89,6 +89,18 @@ nix run .#install -- servitor /dev/sdb --no-bootloader
 INSTALL_HOST=deus-vault nix run .#install
 ```
 
+`deus-vault` needs five disks (1 OS drive + 4 RAID5 members). Because the raw
+`/dev/sdX` names don't identify the physical drives at installer boot, the app
+prints a disk inventory (`lsblk` with model/serial) and asks which device is
+the OS drive and which four are the RAID members — enter stable paths such as
+`/dev/disk/by-id/...`. The selected drives are also injected into the system
+build, so the baked-in GRUB devices point at the real OS drive. To skip the
+prompt in a scripted install:
+
+```console
+DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2 /dev/disk/by-id/ata-R3 /dev/disk/by-id/ata-R4" nix run .#install
+```
+
 For `horizon` the dotfiles submodule is copied into the target home during
 installation.
 
