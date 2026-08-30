@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Enforce alejandra formatting: run the flake formatter and fail if it
+  # would change any file.
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Rewrite submodule URLs to https
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+      - name: Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: Check formatting
+        run: |
+          FORMATTER="$(nix build .#formatter.x86_64-linux --print-out-paths)"
+          "$FORMATTER/bin/alejandra" $(git ls-files '*.nix')
+          git diff --exit-code
+
+  # Fast evaluation/build checks: unit tests, module eval tests, disko eval,
+  # overlay, install-script tests, host/home configuration eval. These catch
+  # evaluation regressions quickly without booting VMs.
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The dotfiles submodule is referenced by the flake (install app),
+          # so it must be present for the flake source to be complete.
+          submodules: recursive
+      # The submodule uses an SSH URL; make it work with the checkout token.
+      - name: Rewrite submodule URLs to https
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+      - name: Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: Run fast checks
+        run: |
+          nix build \
+            .#checks.x86_64-linux.unit \
+            .#checks.x86_64-linux.module-eval \
+            .#checks.x86_64-linux.disko-eval \
+            .#checks.x86_64-linux.overlay \
+            .#checks.x86_64-linux.install-args \
+            .#checks.x86_64-linux.host-eval \
+            .#checks.x86_64-linux.home-eval \
+            .#checks.x86_64-linux.install-app-syntax
+
+  # NixOS VM/integration tests (boot real QEMU machines; require KVM, which
+  # ubuntu-latest runners provide).
+  vm:
+    runs-on: ubuntu-latest
+    needs: fast
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Rewrite submodule URLs to https
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+      - name: Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: Run VM tests
+        run: |
+          nix build \
+            .#checks.x86_64-linux.vm-tailscale \
+            .#checks.x86_64-linux.vm-network-mount \
+            .#checks.x86_64-linux.vm-disko-deus-vault

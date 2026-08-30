@@ -3,14 +3,14 @@
     appimage-run
     docker
     ethtool
-	exfat
+    exfat
     pciutils
     strace
     ltrace
     lsof
     sysstat
     usbutils
-	udiskie
+    udiskie
     udisks2
     lm_sensors
     wget

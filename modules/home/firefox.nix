@@ -83,7 +83,7 @@
           installation_mode = "force_installed";
           private_browsing = true;
         };
-		
+
         "sponsorBlocker@ajay.app" = {
           install_url = moz "sponsorblock";
           installation_mode = "force_installed";

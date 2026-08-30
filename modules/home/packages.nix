@@ -6,7 +6,7 @@
   home.packages = with pkgs; [
     filen-desktop
     darktable
-	logseq
+    logseq
     rawtherapee
     vesktop
     libreoffice
