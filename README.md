@@ -91,13 +91,24 @@ INSTALL_HOST=deus-vault nix run .#install
 
 `deus-vault` needs one OS drive plus an arbitrary number (≥ 1) of RAID5
 member disks. Because the raw `/dev/sdX` names don't identify the physical
-drives at installer boot, the app prints a disk inventory (`lsblk` with
-model/serial), asks which device is the OS drive and how many disks are in the
-array, then asks for each member — enter stable paths such as
-`/dev/disk/by-id/...`. The selected drives are also injected into the system
-build, so the baked-in GRUB devices point at the real OS drive. To skip the
-prompt in a scripted install (first device = OS drive, the rest = RAID
-members):
+drives at installer boot, the app prints a numbered menu of candidate disks
+(the by-id names embed model/serial, so you match them to the hardware) and
+you pick the OS drive and the RAID members by number:
+
+```console
+[install] Candidate disks (match the MODEL/SERIAL on the hardware):
+  [1] ata-WDC_WD40EFRX-68N32N0_WD-WCC7K2... (/dev/sda, 4T)
+  [2] ata-WDC_WD40EFRX-68N32N0_WD-WCC7L4... (/dev/sdb, 4T)
+  ...
+[install] OS drive (number 1-5): 1
+[install] number of RAID5 member disks: 4
+[install] RAID member 1 (number 1-5): 2
+...
+```
+
+The selected drives are injected into the system build, so the baked-in GRUB
+devices point at the real OS drive. To skip the prompt in a scripted install
+(first device = OS drive, the rest = RAID members):
 
 ```console
 DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2 /dev/disk/by-id/ata-R3 /dev/disk/by-id/ata-R4" nix run .#install

@@ -121,66 +121,99 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
     echo "PASS: json-rejects-quote"
   fi
 
-  # --- select_deus_vault_disks (interactive disk identification) ---
+  # --- list_candidate_disks (numbered disk enumeration) ---
   stub_dir=$(mktemp -d)
-  # avoid a heredoc: alejandra re-indents Nix string contents and would
-  # break the <<EOF terminator; /bin/sh shebang: /usr/bin/env is absent
-  # in the Nix build sandbox
-  printf '%s\n' \
-    '#!/bin/sh' \
-    "echo 'NAME SIZE MODEL SERIAL TRAN PATH MOUNTPOINTS'" \
-    "echo 'sda  4T   WDC   WD40 FOO  /dev/sda '" \
-    "echo 'sdb  4T   WDC   WD40 BAR  /dev/sdb '" > "$stub_dir/lsblk"
+  mkdir -p "$stub_dir/by-id"
+  ln -s /dev/sda "$stub_dir/by-id/ata-WDC_OS"
+  ln -s /dev/sdb "$stub_dir/by-id/ata-WDC_R1"
+  ln -s /dev/sdc "$stub_dir/by-id/ata-WDC_R2"
+  ln -s /dev/sdd "$stub_dir/by-id/ata-WDC_R3"
+  ln -s /dev/sde "$stub_dir/by-id/ata-WDC_R4"
+  # a second symlink to the same device must be deduped
+  ln -s /dev/sdc "$stub_dir/by-id/wwn-0xDUPLICATE"
+  # a partition symlink must be skipped
+  ln -s /dev/sda1 "$stub_dir/by-id/ata-WDC_OS-part1"
+  # /bin/sh shebang: /usr/bin/env is absent in the Nix build sandbox
+  printf '%s\n' '#!/bin/sh' "echo '4T'" > "$stub_dir/lsblk"
   chmod +x "$stub_dir/lsblk"
 
-  # 4 RAID members (OS drive + count + members)
-  PATH="$stub_dir:$PATH" got=$(
-    printf '%s\n' \
-      /dev/disk/by-id/ata-OS \
-      4 \
-      /dev/disk/by-id/ata-R1 \
-      /dev/disk/by-id/ata-R2 \
-      /dev/disk/by-id/ata-R3 \
-      /dev/disk/by-id/ata-R4 |
-      HOST=deus-vault select_deus_vault_disks
+  got=$(PATH="$stub_dir:$PATH" list_candidate_disks "$stub_dir/by-id")
+  lines=$(printf '%s\n' "$got" | wc -l)
+  if [[ "$lines" -eq 5 ]] \
+    && printf '%s\n' "$got" | grep -q '^1|ata-WDC_OS|4T|/dev/sda$' \
+    && printf '%s\n' "$got" | grep -q '^5|ata-WDC_R4|4T|/dev/sde$' \
+    && ! printf '%s\n' "$got" | grep -q 'DUPLICATE' \
+    && ! printf '%s\n' "$got" | grep -q 'part1'; then
+    echo "PASS: list-candidate-disks (deduped, partitions skipped)"
+  else
+    echo "FAIL: list-candidate-disks (got: $got)"
+    failures=$((failures + 1))
+  fi
+
+  # --- select_deus_vault_disks (numbered interactive selection) ---
+  # 4 RAID members: OS=1, count=4, members=2 3 4 5
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 1 4 2 3 4 5 | HOST=deus-vault select_deus_vault_disks
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2","/dev/disk/by-id/ata-R3","/dev/disk/by-id/ata-R4"]' ]]; then
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3","/dev/disk/by-id/ata-WDC_R4"]' ]]; then
     echo "PASS: select-deus-vault-disks-4-members"
   else
     echo "FAIL: select-deus-vault-disks-4-members (got '$got')"
     failures=$((failures + 1))
   fi
 
-  # 1 RAID member (arbitrary count support)
-  PATH="$stub_dir:$PATH" got=$(
-    printf '%s\n' \
-      /dev/disk/by-id/ata-OS \
-      1 \
-      /dev/disk/by-id/ata-R1 |
-      HOST=deus-vault select_deus_vault_disks
+  # 1 RAID member: OS=1, count=1, member=2
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 1 1 2 | HOST=deus-vault select_deus_vault_disks
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1"]' ]]; then
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
     echo "PASS: select-deus-vault-disks-1-member"
   else
     echo "FAIL: select-deus-vault-disks-1-member (got '$got')"
     failures=$((failures + 1))
   fi
 
-  # a non-numeric member count is rejected and re-prompted
-  PATH="$stub_dir:$PATH" got=$(
-    printf '%s\n' \
-      /dev/disk/by-id/ata-OS \
-      nope \
-      0 \
-      2 \
-      /dev/disk/by-id/ata-R1 \
-      /dev/disk/by-id/ata-R2 |
-      HOST=deus-vault select_deus_vault_disks 2>/dev/null
+  # bad count re-prompted (nope, 0, then 2): OS=1, members=3 4
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 1 nope 0 2 3 4 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2"]' ]]; then
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3"]' ]]; then
     echo "PASS: select-deus-vault-disks-rejects-bad-count"
   else
     echo "FAIL: select-deus-vault-disks-rejects-bad-count (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  # duplicate selection rejected (member=1 == OS, then 2): OS=1, count=1
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 1 1 1 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
+    echo "PASS: select-deus-vault-disks-rejects-duplicate"
+  else
+    echo "FAIL: select-deus-vault-disks-rejects-duplicate (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  # out-of-range numbers re-prompted (OS=9 -> 1, member=9 -> 2)
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 9 1 1 9 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
+    echo "PASS: select-deus-vault-disks-rejects-out-of-range"
+  else
+    echo "FAIL: select-deus-vault-disks-rejects-out-of-range (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  # count larger than the available disks is rejected (9 -> 2), members=3 4
+  PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
+    printf '%s\n' 1 9 2 3 4 5 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3"]' ]]; then
+    echo "PASS: select-deus-vault-disks-rejects-too-many"
+  else
+    echo "FAIL: select-deus-vault-disks-rejects-too-many (got '$got')"
     failures=$((failures + 1))
   fi
 
