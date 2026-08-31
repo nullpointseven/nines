@@ -36,7 +36,7 @@ minutes of build time on first run).
 | `module-eval` | NixOS module evaluation | Every custom `my.*` module (`docker`, `tailscale`, `networkMount`, `intel`, `power`, `desktop`) evaluated against the full NixOS option set: defaults, enabled behaviour, edge cases (custom users, CIFS credentials, nftables backend, firewall wiring) and failure cases (wrong option types, undeclared options rejected via `_module.check`) |
 | `disko-eval` | disko module evaluation | All three `hosts/*/disk-config.nix` validate against disko's own type system and produce the expected partition/subvolume/raid layout |
 | `overlay` | evaluation | The `unstable` overlay adds a distinct package set |
-| `install-args` | shell test | `scripts/install-lib.sh`: argument parsing (host/device/flags matrix, `INSTALL_HOST`), `disko_disks_json` validation/rendering, numbered disk enumeration/selection (dedupe, range/duplicate/count validation) and `DEUS_VAULT_DISKS` handling |
+| `install-args` | shell test | `scripts/install-lib.sh`: argument parsing (host/device/flags matrix, `INSTALL_HOST`), `disko_disks_nix` validation/rendering, numbered disk enumeration/selection (dedupe, range/duplicate/count validation) and `DEUS_VAULT_DISKS` handling |
 | `install-app-syntax` | shell check | The generated `install` app is syntactically valid bash |
 | `host-eval` | configuration evaluation | Each `nixosConfiguration` (horizon/servitor/deus-vault) evaluates with the expected hostname, stateVersion, custom-module flags and service wiring |
 | `home-eval` | home-manager evaluation | The home configuration evaluates: firefox policies/extensions/search/containers, git config, udiskie/mpris-proxy services, and `home.packages` resolves |

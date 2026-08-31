@@ -83,12 +83,12 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
     && echo "PASS: explicit-host-overrides-env" \
     || { echo "FAIL: explicit-host-overrides-env (got host='$HOST')"; failures=$((failures + 1)); }
 
-  # --- disko_disks_json ---
-  run_json() {
+  # --- disko_disks_nix (renders a Nix list, not JSON!) ---
+  run_nix() {
     local name="$1" expected="$2"
     shift 2
     local out
-    if out=$(disko_disks_json "$@" 2>/dev/null); then
+    if out=$(disko_disks_nix "$@" 2>/dev/null); then
       if [[ "$out" == "$expected" ]]; then
         echo "PASS: $name"
       else
@@ -101,24 +101,33 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
     fi
   }
 
-  run_json "json-single" '["/dev/sda"]' /dev/sda
-  run_json "json-five" '["/dev/sda","/dev/sdb","/dev/sdc","/dev/sdd","/dev/sde"]' /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde
-  run_json "json-by-id" '["/dev/disk/by-id/ata-FOO","/dev/disk/by-id/ata-BAR"]' /dev/disk/by-id/ata-FOO /dev/disk/by-id/ata-BAR
+  run_nix "nix-single" '[ "/dev/sda" ]' /dev/sda
+  run_nix "nix-five" '[ "/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd" "/dev/sde" ]' /dev/sda /dev/sdb /dev/sdc /dev/sdd /dev/sde
+  run_nix "nix-by-id" '[ "/dev/disk/by-id/ata-FOO" "/dev/disk/by-id/ata-BAR" ]' /dev/disk/by-id/ata-FOO /dev/disk/by-id/ata-BAR
+
+  # the rendered list must be valid Nix (space separated, no commas)
+  got=$(disko_disks_nix /dev/sda /dev/sdb)
+  if ! printf '%s' "$got" | grep -q ','; then
+    echo "PASS: nix-no-commas"
+  else
+    echo "FAIL: nix-no-commas (got '$got')"
+    failures=$((failures + 1))
+  fi
 
   # invalid: not an absolute /dev path
-  if got=$(disko_disks_json "sda" 2>/dev/null); then
-    echo "FAIL: json-rejects-relative-path (got '$got')"
+  if got=$(disko_disks_nix "sda" 2>/dev/null); then
+    echo "FAIL: nix-rejects-relative-path (got '$got')"
     failures=$((failures + 1))
   else
-    echo "PASS: json-rejects-relative-path"
+    echo "PASS: nix-rejects-relative-path"
   fi
 
   # invalid: embedded quote
-  if got=$(disko_disks_json '/dev/sd"a' 2>/dev/null); then
-    echo "FAIL: json-rejects-quote (got '$got')"
+  if got=$(disko_disks_nix '/dev/sd"a' 2>/dev/null); then
+    echo "FAIL: nix-rejects-quote (got '$got')"
     failures=$((failures + 1))
   else
-    echo "PASS: json-rejects-quote"
+    echo "PASS: nix-rejects-quote"
   fi
 
   # --- list_candidate_disks (numbered disk enumeration) ---
@@ -155,7 +164,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 1 4 2 3 4 5 | HOST=deus-vault select_deus_vault_disks
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3","/dev/disk/by-id/ata-WDC_R4"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R1" "/dev/disk/by-id/ata-WDC_R2" "/dev/disk/by-id/ata-WDC_R3" "/dev/disk/by-id/ata-WDC_R4" ]' ]]; then
     echo "PASS: select-deus-vault-disks-4-members"
   else
     echo "FAIL: select-deus-vault-disks-4-members (got '$got')"
@@ -166,7 +175,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 1 1 2 | HOST=deus-vault select_deus_vault_disks
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R1" ]' ]]; then
     echo "PASS: select-deus-vault-disks-1-member"
   else
     echo "FAIL: select-deus-vault-disks-1-member (got '$got')"
@@ -177,7 +186,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 1 nope 0 2 3 4 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R2" "/dev/disk/by-id/ata-WDC_R3" ]' ]]; then
     echo "PASS: select-deus-vault-disks-rejects-bad-count"
   else
     echo "FAIL: select-deus-vault-disks-rejects-bad-count (got '$got')"
@@ -188,7 +197,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 1 1 1 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R1" ]' ]]; then
     echo "PASS: select-deus-vault-disks-rejects-duplicate"
   else
     echo "FAIL: select-deus-vault-disks-rejects-duplicate (got '$got')"
@@ -199,7 +208,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 9 1 1 9 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R1"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R1" ]' ]]; then
     echo "PASS: select-deus-vault-disks-rejects-out-of-range"
   else
     echo "FAIL: select-deus-vault-disks-rejects-out-of-range (got '$got')"
@@ -210,7 +219,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   PATH="$stub_dir:$PATH" DEUS_VAULT_BYID_DIR="$stub_dir/by-id" got=$(
     printf '%s\n' 1 9 2 3 4 5 2 | HOST=deus-vault select_deus_vault_disks 2>/dev/null
   )
-  if [[ "$got" == '["/dev/disk/by-id/ata-WDC_OS","/dev/disk/by-id/ata-WDC_R2","/dev/disk/by-id/ata-WDC_R3"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-WDC_OS" "/dev/disk/by-id/ata-WDC_R2" "/dev/disk/by-id/ata-WDC_R3" ]' ]]; then
     echo "PASS: select-deus-vault-disks-rejects-too-many"
   else
     echo "FAIL: select-deus-vault-disks-rejects-too-many (got '$got')"
@@ -221,7 +230,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
 
   # --- deus_vault_disks_from_env ---
   got=$(DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2 /dev/disk/by-id/ata-R3 /dev/disk/by-id/ata-R4" deus_vault_disks_from_env)
-  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2","/dev/disk/by-id/ata-R3","/dev/disk/by-id/ata-R4"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-OS" "/dev/disk/by-id/ata-R1" "/dev/disk/by-id/ata-R2" "/dev/disk/by-id/ata-R3" "/dev/disk/by-id/ata-R4" ]' ]]; then
     echo "PASS: env-disks-five"
   else
     echo "FAIL: env-disks-five (got '$got')"
@@ -229,7 +238,7 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
   fi
 
   got=$(DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2" deus_vault_disks_from_env)
-  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2"]' ]]; then
+  if [[ "$got" == '[ "/dev/disk/by-id/ata-OS" "/dev/disk/by-id/ata-R1" "/dev/disk/by-id/ata-R2" ]' ]]; then
     echo "PASS: env-disks-three"
   else
     echo "FAIL: env-disks-three (got '$got')"

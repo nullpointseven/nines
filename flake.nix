@@ -158,7 +158,16 @@
             disko_disks="$(select_deus_vault_disks)"
           fi
         else
-          disko_disks="$(disko_disks_json "$DEVICE")"
+          disko_disks="$(disko_disks_nix "$DEVICE")"
+        fi
+
+        # disko parses the list as a Nix expression: JSON-style commas are a
+        # syntax error. Catch a stale/out-of-date install-lib.sh here instead
+        # of letting disko fail with a confusing parser dump.
+        if [[ "$disko_disks" == *","* ]]; then
+          echo "[install] error: generated disk list is not valid Nix (contains commas): $disko_disks" >&2
+          echo "[install] (scripts/install-lib.sh is out of date; expected the 'disko_disks_nix' space-separated format)" >&2
+          exit 1
         fi
 
         echo "[install] partitioning and mounting with disko for host '$HOST' on $disko_disks..."

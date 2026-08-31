@@ -34,11 +34,13 @@ parse_install_args() {
   fi
 }
 
-# Render a disko `--arg disks` JSON array from device paths, validating that
-# each is an absolute /dev path. Prints the JSON on stdout; errors on stderr.
-# Prefer stable paths like /dev/disk/by-id/... over raw /dev/sdX names.
-disko_disks_json() {
-  local json="" dev
+# Render a disko `--arg disks` Nix list from device paths, validating that
+# each is an absolute /dev path. Prints the list on stdout; errors on stderr.
+# Note: disko passes the value to nix-build as a *Nix expression*, and Nix
+# lists are separated by whitespace — JSON-style `["a","b"]` is a syntax
+# error. Prefer stable paths like /dev/disk/by-id/... over raw /dev/sdX names.
+disko_disks_nix() {
+  local out="" dev
   for dev in "$@"; do
     if [[ ! "$dev" =~ ^/dev/ ]]; then
       echo "error: disk device '$dev' must be an absolute /dev path (prefer /dev/disk/by-id/...)" >&2
@@ -48,9 +50,9 @@ disko_disks_json() {
       echo "error: disk device '$dev' contains invalid characters" >&2
       return 1
     fi
-    json+="\"$dev\","
+    out+="\"$dev\" "
   done
-  echo "[${json%,}]"
+  echo "[ ${out% } ]"
 }
 
 # Print a numbered list of candidate disks as "N|by-id-name|size|raw-device"
@@ -85,8 +87,8 @@ list_candidate_disks() {
 # disks whose raw /dev/sdX names cannot be mapped to physical drives at
 # installer boot. Print a numbered menu of candidate disks (by-id names embed
 # the MODEL/SERIAL) and let the user pick by number, then print a disko
-# `--arg disks` JSON array on stdout (first device = OS drive, the rest =
-# RAID members). The menu goes to stderr so the JSON stays clean. Set
+# `--arg disks` Nix list on stdout (first device = OS drive, the rest =
+# RAID members). The menu goes to stderr so the list stays clean. Set
 # DEUS_VAULT_DISKS (space separated devices) to skip the prompt.
 select_deus_vault_disks() {
   local byid_dir="${DEUS_VAULT_BYID_DIR:-/dev/disk/by-id}"
@@ -157,10 +159,10 @@ select_deus_vault_disks() {
   for num in "${selected[@]}"; do
     disks+=("/dev/disk/by-id/${byid[$num]}")
   done
-  disko_disks_json "${disks[@]}"
+  disko_disks_nix "${disks[@]}"
 }
 
-# Print a disko `--arg disks` JSON array from the DEUS_VAULT_DISKS environment
+# Print a disko `--arg disks` Nix list from the DEUS_VAULT_DISKS environment
 # variable (space separated devices; first = OS drive, the rest = RAID members).
 deus_vault_disks_from_env() {
   local disks=()
@@ -169,5 +171,5 @@ deus_vault_disks_from_env() {
     echo "error: DEUS_VAULT_DISKS must list the OS drive plus at least 1 RAID member (space separated)" >&2
     return 1
   fi
-  disko_disks_json "${disks[@]}"
+  disko_disks_nix "${disks[@]}"
 }
