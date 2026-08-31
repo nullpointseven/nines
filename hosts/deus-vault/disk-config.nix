@@ -1,7 +1,7 @@
 {lib, ...}: {
   disko.devices = {
     disk = {
-      # OS drive: EFI System Partition (systemd-boot) + ext4 root.
+      # OS drive: EFI System Partition (systemd-boot) + btrfs root.
       main = {
         type = "disk";
         device = "/dev/sda";
@@ -22,7 +22,7 @@
               size = "100%";
               content = {
                 type = "filesystem";
-                format = "ext4";
+                format = "btrfs";
                 mountpoint = "/";
               };
             };
@@ -74,7 +74,7 @@
               size = "100%";
               content = {
                 type = "filesystem";
-                format = "ext4";
+                format = "btrfs";
                 mountpoint = "/data";
               };
             };
