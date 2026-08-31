@@ -9,7 +9,7 @@
           partitions = {
             boot = {
               type = "EF00"; # for grub MBR
-              size = "10M";
+              size = "512M";
 			  content = {
 				type = "filesystem";
 				format = "vfat";
@@ -17,12 +17,20 @@
 				mountOptions = [ "umask=0077" ];
 			  };
             };
+			root = {
+				size = "100%"
+				content = {
+					type = "filesystem";
+					format = "btrfs";
+					mountpoint = "/";
+				}
+			}
           };
         };
       };
       disk1 = {
         type = "disk";
-        device = "/dev/sde";
+        device = "/dev/sdb";
         content = {
           type = "gpt";
           partitions = {
@@ -34,7 +42,7 @@
               size = "100%";
               content = {
                 type = "mdraid";
-                name = "raid5";
+                name = "data";
               };
             };
           };
@@ -42,7 +50,7 @@
       };
       disk2 = {
         type = "disk";
-        device = "/dev/sdf";
+        device = "/dev/sdc";
         content = {
           type = "gpt";
           partitions = {
@@ -54,27 +62,7 @@
               size = "100%";
               content = {
                 type = "mdraid";
-                name = "raid5";
-              };
-            };
-          };
-        };
-      };
-      disk3 = {
-        type = "disk";
-        device = "/dev/sdg";
-        content = {
-          type = "gpt";
-          partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
-            mdadm = {
-              size = "100%";
-              content = {
-                type = "mdraid";
-                name = "raid5";
+                name = "data";
               };
             };
           };
@@ -82,9 +70,9 @@
       };
     };
     mdadm = {
-      raid5 = {
+      data = {
         type = "mdadm";
-        level = 5;
+        level = 1;
         content = {
           type = "gpt";
           partitions = {
@@ -93,7 +81,7 @@
               content = {
                 type = "filesystem";
                 format = "btrfs";
-                mountpoint = "/";
+                mountpoint = "/data";
               };
             };
           };
