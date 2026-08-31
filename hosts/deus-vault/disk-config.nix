@@ -8,22 +8,21 @@
           type = "gpt";
           partitions = {
             boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
-            mdadm = {
-              size = "100%";
-              content = {
-                type = "mdraid";
-                name = "raid5";
-              };
+              type = "EF00"; # for grub MBR
+              size = "10M";
+			  content = {
+				type = "filesystem";
+				format = "vfat";
+				mountpoint = "/boot";
+				mountOptions = [ "umask=0077" ];
+			  };
             };
           };
         };
       };
       disk1 = {
         type = "disk";
-        device = "/dev/sdb";
+        device = "/dev/sde";
         content = {
           type = "gpt";
           partitions = {
@@ -43,7 +42,7 @@
       };
       disk2 = {
         type = "disk";
-        device = "/dev/sdc";
+        device = "/dev/sdf";
         content = {
           type = "gpt";
           partitions = {
@@ -63,7 +62,7 @@
       };
       disk3 = {
         type = "disk";
-        device = "/dev/sdd";
+        device = "/dev/sdg";
         content = {
           type = "gpt";
           partitions = {
