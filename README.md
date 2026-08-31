@@ -89,13 +89,15 @@ nix run .#install -- servitor /dev/sdb --no-bootloader
 INSTALL_HOST=deus-vault nix run .#install
 ```
 
-`deus-vault` needs five disks (1 OS drive + 4 RAID5 members). Because the raw
-`/dev/sdX` names don't identify the physical drives at installer boot, the app
-prints a disk inventory (`lsblk` with model/serial) and asks which device is
-the OS drive and which four are the RAID members — enter stable paths such as
+`deus-vault` needs one OS drive plus an arbitrary number (≥ 1) of RAID5
+member disks. Because the raw `/dev/sdX` names don't identify the physical
+drives at installer boot, the app prints a disk inventory (`lsblk` with
+model/serial), asks which device is the OS drive and how many disks are in the
+array, then asks for each member — enter stable paths such as
 `/dev/disk/by-id/...`. The selected drives are also injected into the system
 build, so the baked-in GRUB devices point at the real OS drive. To skip the
-prompt in a scripted install:
+prompt in a scripted install (first device = OS drive, the rest = RAID
+members):
 
 ```console
 DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2 /dev/disk/by-id/ata-R3 /dev/disk/by-id/ata-R4" nix run .#install

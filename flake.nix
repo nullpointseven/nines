@@ -140,18 +140,20 @@
         mount=/mnt
         disko_config="${self}/hosts/$HOST/disk-config.nix"
 
+        if [[ ! -f "$disko_config" ]]; then
+          echo "[install] error: no disk configuration found at $disko_config" >&2
+          echo "[install] (this flake must be run from the repository root, e.g. 'nix run .#install -- $HOST')" >&2
+          exit 1
+        fi
+
         if [[ "$HOST" == "deus-vault" ]]; then
-          # deus-vault needs 5 disks (1 OS drive + 4 RAID5 members). At
+          # deus-vault needs 1 OS drive + N RAID5 members (N >= 1). At
           # installer boot the raw /dev/sdX names don't identify the drives,
           # so print an inventory and ask which is which. Set
-          # DEUS_VAULT_DISKS (space separated, 5 devices) to skip the prompt.
+          # DEUS_VAULT_DISKS (space separated devices; first = OS drive) to
+          # skip the prompt.
           if [[ -n "''${DEUS_VAULT_DISKS:-}" ]]; then
-            read -r -a deus_vault_disks <<< "$DEUS_VAULT_DISKS"
-            if [[ "''${#deus_vault_disks[@]}" -ne 5 ]]; then
-              echo "[install] error: DEUS_VAULT_DISKS must list exactly 5 devices (OS drive + 4 RAID members)" >&2
-              exit 1
-            fi
-            disko_disks="$(disko_disks_json "''${deus_vault_disks[@]}")"
+            disko_disks="$(deus_vault_disks_from_env)"
           else
             disko_disks="$(select_deus_vault_disks)"
           fi

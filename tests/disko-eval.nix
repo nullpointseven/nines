@@ -147,10 +147,10 @@ in
     };
 
     # ------------------------------------------------------------------
-    # deus-vault: OS drive on /dev/sda (btrfs root), 4-disk mdadm RAID5
-    # array (/dev/sdb..sde) with btrfs on top at /data, grub MBR.
+    # deus-vault: OS drive (btrfs root) + mdadm RAID5 array of arbitrary
+    # size (defaults: /dev/sdb..sde) with btrfs on top at /data, grub MBR.
     # ------------------------------------------------------------------
-    testDeusVaultHasFiveDisks = {
+    testDeusVaultDefaultHasFiveDisks = {
       expr = builtins.attrNames deusVault.disk;
       expected = ["disk1" "disk2" "disk3" "disk4" "main"];
     };
@@ -158,6 +158,28 @@ in
     testDeusVaultDiskDevices = {
       expr = builtins.map (d: deusVault.disk.${d}.device) ["main" "disk1" "disk2" "disk3" "disk4"];
       expected = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd" "/dev/sde"];
+    };
+
+    # The RAID member count is variable: the config generates one disk per
+    # entry after the OS drive.
+    testDeusVaultVariableRaidSize = {
+      expr = let
+        cfg = evalDisko (import ../hosts/deus-vault/disk-config.nix) [
+          "/dev/disk/by-id/ata-OS"
+          "/dev/disk/by-id/ata-R1"
+          "/dev/disk/by-id/ata-R2"
+        ];
+        raidDisks = builtins.attrNames (lib.removeAttrs cfg.disk ["main"]);
+      in {
+        os = cfg.disk.main.device;
+        raidDisks = raidDisks;
+        raidDevices = builtins.map (d: cfg.disk.${d}.device) raidDisks;
+      };
+      expected = {
+        os = "/dev/disk/by-id/ata-OS";
+        raidDisks = ["disk1" "disk2"];
+        raidDevices = ["/dev/disk/by-id/ata-R1" "/dev/disk/by-id/ata-R2"];
+      };
     };
 
     # The install app passes the actual devices (by-id) at install time; the
@@ -171,9 +193,10 @@ in
           "/dev/disk/by-id/ata-R3"
           "/dev/disk/by-id/ata-R4"
         ];
+        raidDisks = builtins.attrNames (lib.removeAttrs cfg.disk ["main"]);
       in {
         os = cfg.disk.main.device;
-        raid = builtins.map (d: cfg.disk.${d}.device) ["disk1" "disk2" "disk3" "disk4"];
+        raid = builtins.map (d: cfg.disk.${d}.device) raidDisks;
       };
       expected = {
         os = "/dev/disk/by-id/ata-OS";
@@ -181,11 +204,12 @@ in
       };
     };
 
-    testDeusVaultRejectsWrongDiskCount = testThrows (
+    # A single disk (no RAID members) is rejected.
+    testDeusVaultRejectsNoRaidMember = testThrows (
       (import ../hosts/deus-vault/disk-config.nix {
         inherit lib;
         disks = ["/dev/sda"];
-      }).disko.devices.disk.disk1.device
+      }).disko.devices.disk.main.device
     );
 
     testDeusVaultMainDiskIsOsDrive = {
@@ -204,17 +228,20 @@ in
       };
     };
 
-    # Every one of the four RAID drives must carry an mdraid member of the
-    # same `raid5` array (a disk that is not a member would silently shrink
-    # the array to 3 drives).
-    testDeusVaultAllFourDisksJoinRaid5 = {
-      expr = builtins.map (d: let
-        member = deusVault.disk.${d}.content.partitions.mdadm.content;
-      in {
-        device = deusVault.disk.${d}.device;
-        type = member.type;
-        array = member.name;
-      }) ["disk1" "disk2" "disk3" "disk4"];
+    # Every RAID drive (all disks except the OS drive) must carry an mdraid
+    # member of the same `raid5` array.
+    testDeusVaultAllRaidDisksJoinRaid5 = {
+      expr = let
+        raidDisks = builtins.attrNames (lib.removeAttrs deusVault.disk ["main"]);
+      in
+        builtins.map (d: let
+          member = deusVault.disk.${d}.content.partitions.mdadm.content;
+        in {
+          device = deusVault.disk.${d}.device;
+          type = member.type;
+          array = member.name;
+        })
+        raidDisks;
       expected = [
         {
           device = "/dev/sdb";

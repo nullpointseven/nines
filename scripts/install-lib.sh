@@ -53,16 +53,17 @@ disko_disks_json() {
   echo "[${json%,}]"
 }
 
-# deus-vault has five disks (1 OS drive + 4 RAID5 members) whose raw /dev/sdX
-# names cannot be mapped to physical drives at installer boot. Print a disk
-# inventory and ask which device is which, then print a disko `--arg disks`
-# JSON array on stdout. The inventory goes to stderr so the JSON stays clean.
-# Set DEUS_VAULT_DISKS (space separated, 5 devices) to skip the prompt.
+# deus-vault has one OS drive plus an arbitrary number (>= 1) of RAID5 member
+# disks whose raw /dev/sdX names cannot be mapped to physical drives at
+# installer boot. Print a disk inventory and ask which device is which, then
+# print a disko `--arg disks` JSON array on stdout (first device = OS drive,
+# the rest = RAID members). The inventory goes to stderr so the JSON stays
+# clean. Set DEUS_VAULT_DISKS (space separated devices) to skip the prompt.
 select_deus_vault_disks() {
-  local labels=("OS drive" "RAID member 1" "RAID member 2" "RAID member 3" "RAID member 4")
-  local disks=() dev i
+  local os_drive count i dev
+  local disks=()
 
-  echo "[install] $HOST needs 5 disks: 1 OS drive + 4 RAID5 members." >&2
+  echo "[install] $HOST needs 1 OS drive + N RAID5 members (N >= 1)." >&2
   echo "[install] Identify the drives by MODEL/SERIAL (printed on the hardware):" >&2
   lsblk -o NAME,SIZE,MODEL,SERIAL,TRAN,PATH,MOUNTPOINTS >&2
   echo >&2
@@ -70,9 +71,32 @@ select_deus_vault_disks() {
   ls -l /dev/disk/by-id/ 2>/dev/null | grep -v -- '-part[0-9]' >&2 || true
   echo >&2
 
-  for i in 0 1 2 3 4; do
-    read -r -p "[install] ${labels[$i]} (e.g. /dev/disk/by-id/...): " dev
+  read -r -p "[install] OS drive (e.g. /dev/disk/by-id/...): " os_drive
+  disks+=("$os_drive")
+
+  while true; do
+    read -r -p "[install] number of RAID5 member disks: " count
+    if [[ "$count" =~ ^[0-9]+$ ]] && [[ "$count" -ge 1 ]]; then
+      break
+    fi
+    echo "[install] please enter a positive integer (>= 1)" >&2
+  done
+
+  for ((i = 1; i <= count; i++)); do
+    read -r -p "[install] RAID member $i (e.g. /dev/disk/by-id/...): " dev
     disks+=("$dev")
   done
+  disko_disks_json "${disks[@]}"
+}
+
+# Print a disko `--arg disks` JSON array from the DEUS_VAULT_DISKS environment
+# variable (space separated devices; first = OS drive, the rest = RAID members).
+deus_vault_disks_from_env() {
+  local disks=()
+  read -r -a disks <<< "${DEUS_VAULT_DISKS:-}"
+  if [[ "${#disks[@]}" -lt 2 ]]; then
+    echo "error: DEUS_VAULT_DISKS must list the OS drive plus at least 1 RAID member (space separated)" >&2
+    return 1
+  fi
   disko_disks_json "${disks[@]}"
 }

@@ -132,9 +132,12 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
     "echo 'sda  4T   WDC   WD40 FOO  /dev/sda '" \
     "echo 'sdb  4T   WDC   WD40 BAR  /dev/sdb '" > "$stub_dir/lsblk"
   chmod +x "$stub_dir/lsblk"
+
+  # 4 RAID members (OS drive + count + members)
   PATH="$stub_dir:$PATH" got=$(
     printf '%s\n' \
       /dev/disk/by-id/ata-OS \
+      4 \
       /dev/disk/by-id/ata-R1 \
       /dev/disk/by-id/ata-R2 \
       /dev/disk/by-id/ata-R3 \
@@ -142,12 +145,71 @@ pkgs.runCommand "install-args-tests" {nativeBuildInputs = [pkgs.bash];} ''
       HOST=deus-vault select_deus_vault_disks
   )
   if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2","/dev/disk/by-id/ata-R3","/dev/disk/by-id/ata-R4"]' ]]; then
-    echo "PASS: select-deus-vault-disks"
+    echo "PASS: select-deus-vault-disks-4-members"
   else
-    echo "FAIL: select-deus-vault-disks (got '$got')"
+    echo "FAIL: select-deus-vault-disks-4-members (got '$got')"
     failures=$((failures + 1))
   fi
+
+  # 1 RAID member (arbitrary count support)
+  PATH="$stub_dir:$PATH" got=$(
+    printf '%s\n' \
+      /dev/disk/by-id/ata-OS \
+      1 \
+      /dev/disk/by-id/ata-R1 |
+      HOST=deus-vault select_deus_vault_disks
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1"]' ]]; then
+    echo "PASS: select-deus-vault-disks-1-member"
+  else
+    echo "FAIL: select-deus-vault-disks-1-member (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  # a non-numeric member count is rejected and re-prompted
+  PATH="$stub_dir:$PATH" got=$(
+    printf '%s\n' \
+      /dev/disk/by-id/ata-OS \
+      nope \
+      0 \
+      2 \
+      /dev/disk/by-id/ata-R1 \
+      /dev/disk/by-id/ata-R2 |
+      HOST=deus-vault select_deus_vault_disks 2>/dev/null
+  )
+  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2"]' ]]; then
+    echo "PASS: select-deus-vault-disks-rejects-bad-count"
+  else
+    echo "FAIL: select-deus-vault-disks-rejects-bad-count (got '$got')"
+    failures=$((failures + 1))
+  fi
+
   rm -rf "$stub_dir"
+
+  # --- deus_vault_disks_from_env ---
+  got=$(DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2 /dev/disk/by-id/ata-R3 /dev/disk/by-id/ata-R4" deus_vault_disks_from_env)
+  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2","/dev/disk/by-id/ata-R3","/dev/disk/by-id/ata-R4"]' ]]; then
+    echo "PASS: env-disks-five"
+  else
+    echo "FAIL: env-disks-five (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  got=$(DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS /dev/disk/by-id/ata-R1 /dev/disk/by-id/ata-R2" deus_vault_disks_from_env)
+  if [[ "$got" == '["/dev/disk/by-id/ata-OS","/dev/disk/by-id/ata-R1","/dev/disk/by-id/ata-R2"]' ]]; then
+    echo "PASS: env-disks-three"
+  else
+    echo "FAIL: env-disks-three (got '$got')"
+    failures=$((failures + 1))
+  fi
+
+  # env with only the OS drive (no RAID member) must be rejected
+  if got=$(DEUS_VAULT_DISKS="/dev/disk/by-id/ata-OS" deus_vault_disks_from_env 2>/dev/null); then
+    echo "FAIL: env-disks-rejects-no-raid-member (got '$got')"
+    failures=$((failures + 1))
+  else
+    echo "PASS: env-disks-rejects-no-raid-member"
+  fi
 
   if [[ $failures -gt 0 ]]; then
     echo "$failures install-args test(s) failed" >&2
