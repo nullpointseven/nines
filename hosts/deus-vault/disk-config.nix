@@ -36,6 +36,10 @@
         content = {
           type = "gpt";
           partitions = {
+			boot = {
+				size = "1M";
+				type = "EF02";
+			};
             mdadm = {
               size = "100%";
               content = {
@@ -52,6 +56,10 @@
         content = {
           type = "gpt";
           partitions = {
+			boot = {
+				size = "1M";
+				type = "EF02";
+			};
             mdadm = {
               size = "100%";
               content = {
