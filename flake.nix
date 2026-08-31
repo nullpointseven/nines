@@ -189,8 +189,10 @@
         if [[ "$HOST" == "deus-vault" ]]; then
           # Inject the disks selected above into the evaluation so the baked-in
           # GRUB devices target the real OS drive (the raw defaults are not
-          # reliable at install time).
+          # reliable at install time). --impure: getFlake on the bare source
+          # path is an unlocked reference, which pure evaluation rejects.
           closure=$(${pkgs.nix}/bin/nix --extra-experimental-features 'nix-command flakes' build \
+            --impure \
             --no-link \
             --no-write-lock-file \
             --print-out-paths \
