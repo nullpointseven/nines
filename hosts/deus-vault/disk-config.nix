@@ -1,6 +1,7 @@
 {lib, ...}: {
   disko.devices = {
     disk = {
+      # OS drive: EFI System Partition (systemd-boot) + btrfs root.
       main = {
         type = "disk";
         device = "/dev/sda";
@@ -8,36 +9,33 @@
           type = "gpt";
           partitions = {
             boot = {
-              type = "EF00"; # for grub MBR
+              type = "EF00"; # EFI system partition
               size = "512M";
-			  content = {
-				type = "filesystem";
-				format = "vfat";
-				mountpoint = "/boot";
-				mountOptions = [ "umask=0077" ];
-			  };
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot";
+                mountOptions = ["umask=0077"];
+              };
             };
-			root = {
-				size = "100%"
-				content = {
-					type = "filesystem";
-					format = "btrfs";
-					mountpoint = "/";
-				}
-			}
+            root = {
+              size = "100%";
+              content = {
+                type = "filesystem";
+                format = "btrfs";
+                mountpoint = "/";
+              };
+            };
           };
         };
       };
+      # Two RAID1 member drives (data only, no boot partitions).
       disk1 = {
         type = "disk";
         device = "/dev/sdb";
         content = {
           type = "gpt";
           partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
             mdadm = {
               size = "100%";
               content = {
@@ -54,10 +52,6 @@
         content = {
           type = "gpt";
           partitions = {
-            boot = {
-              size = "1M";
-              type = "EF02"; # for grub MBR
-            };
             mdadm = {
               size = "100%";
               content = {
@@ -86,7 +80,14 @@
             };
           };
         };
-        extraArgs = ["--assume-clean"];
+        # --assume-clean: skip the initial resync when creating a fresh array.
+        # --bitmap=internal: enable the write-intent bitmap (faster recovery
+        # after a drive failure) and skip mdadm's interactive bitmap prompt.
+        # disko pipes a single 'y' to mdadm, which then answers the
+        # "partition table exists... Continue creating array [y/N]?" prompt
+        # that appears when the member partitions contain leftover signatures
+        # (without the bitmap flag, that second prompt reads EOF and aborts).
+        extraArgs = ["--assume-clean" "--bitmap=internal"];
       };
     };
   };

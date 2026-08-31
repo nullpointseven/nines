@@ -13,13 +13,8 @@
 
   networking.hostName = "deus-vault";
 
-  # The disk layout (disk-config.nix) uses GPT/MBR with EF02 partitions and
-  # GRUB, not the EFI systemd-boot default from modules/nixos/boot.nix.
-  # GRUB devices are derived from the disk config by the disko module.
-  boot.loader = {
-    systemd-boot.enable = false;
-    grub.enable = true;
-  };
+  # The OS drive has an EFI System Partition, so the systemd-boot default
+  # from modules/nixos/boot.nix applies (GRUB is not used).
 
   # disko enables boot.swraid for the mdadm array; mdadm requires a
   # MAILADDR or PROGRAM in /etc/mdadm.conf or the mdmon service crashes.

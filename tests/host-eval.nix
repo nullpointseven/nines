@@ -147,23 +147,31 @@ in
       expected = true;
     };
 
-    testDeusVaultUsesGrubOnMbr = {
+    testDeusVaultUsesSystemdBoot = {
       expr = let
         loader = self.nixosConfigurations.deus-vault.config.boot.loader;
       in {
         systemdBoot = loader.systemd-boot.enable;
         grub = loader.grub.enable;
-        # disko derives the GRUB devices from the disk config's EF02
-        # partitions; they must cover all four member disks, without
-        # duplicates.
-        grubDevices = builtins.sort (a: b: a < b) loader.grub.devices;
-        noDuplicates = builtins.length loader.grub.devices == builtins.length (lib.lists.unique loader.grub.devices);
       };
       expected = {
-        systemdBoot = false;
-        grub = true;
-        grubDevices = ["/dev/sda" "/dev/sdb" "/dev/sdc" "/dev/sdd"];
-        noDuplicates = true;
+        systemdBoot = true;
+        grub = false;
+      };
+    };
+
+    testDeusVaultHasRootBootAndDataFileSystems = {
+      expr = let
+        fs = self.nixosConfigurations.deus-vault.config.fileSystems;
+      in {
+        hasRoot = fs ? "/";
+        hasBoot = fs ? "/boot";
+        hasData = fs ? "/data";
+      };
+      expected = {
+        hasRoot = true;
+        hasBoot = true;
+        hasData = true;
       };
     };
 

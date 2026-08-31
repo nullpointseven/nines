@@ -42,7 +42,7 @@ minutes of build time on first run).
 | `home-eval` | home-manager evaluation | The home configuration evaluates: firefox policies/extensions/search/containers, git config, udiskie/mpris-proxy services, and `home.packages` resolves |
 | `vm-tailscale` | NixOS VM test | Boots a machine with `my.tailscale` + nftables backend: tailscaled runs, nftables backend env is set, firewall opens the tailscale port/interface |
 | `vm-network-mount` | NixOS VM test | Two machines: a real NFS server and a client using `my.networkMount`; verifies the automount fstab entry actually mounts the export and writes reach the server |
-| `vm-disko-deus-vault` | disko VM test | Runs disko destroy/format/mount for the deus-vault mdadm RAID5 config on virtual disks; verifies the array is assembled and btrfs is mounted |
+| `vm-disko-deus-vault` | disko VM test | Runs disko destroy/format/mount for the deus-vault config on virtual disks (EFI OS drive + 2 RAID1 members); verifies the array is assembled with 2 active drives and both OS root and `/data` btrfs volumes are mounted |
 
 ## Conventions
 
