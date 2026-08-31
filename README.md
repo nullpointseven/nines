@@ -75,22 +75,24 @@ See [tests/README.md](tests/README.md) for details about the test suite.
 
 ## Installing a new host
 
-From the NixOS installer, the `install` app partitions and mounts the target
-disk with Disko and then runs `nixos-install`:
+Partitioning is **not** automated: mount the target filesystems under `/mnt`
+first (each host ships a disko config at `hosts/<host>/disk-config.nix`, e.g.
+`disko --mode destroy,format,mount hosts/<host>/disk-config.nix`), then build
+the system and run `nixos-install` with the `install` app:
 
 ```console
-# defaults: host=horizon, device=/dev/nvme0n1
+# defaults: host=horizon
 nix run .#install
 
-# explicit host and device (plus extra nixos-install flags)
-nix run .#install -- servitor /dev/sdb --no-bootloader
+# explicit host (plus extra nixos-install flags)
+nix run .#install -- servitor --no-bootloader
 
 # or via the INSTALL_HOST environment variable
 INSTALL_HOST=deus-vault nix run .#install
 ```
 
-For `horizon` the dotfiles submodule is copied into the target home during
-installation.
+The app aborts if `/mnt` isn't a mount point. For `horizon` the dotfiles
+submodule is copied into the target home during installation.
 
 ## Secrets
 

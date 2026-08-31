@@ -125,7 +125,6 @@
 
     apps = lib.genAttrs ["x86_64-linux"] (system: let
       pkgs = mkPkgs system;
-      disko = inputs.disko.packages.${system}.disko;
       installScript = pkgs.writeShellScriptBin "install" ''
         set -euo pipefail
 
@@ -135,16 +134,16 @@
         PATH="${pkgs.nix}/bin:${pkgs.nixos-install-tools}/bin:${pkgs.coreutils}/bin:${pkgs.util-linux}/bin:$PATH"
 
         mount=/mnt
-        disko_config="${self}/hosts/$HOST/disk-config.nix"
-        disko_disks="[\"$DEVICE\"]"
 
-        echo "[install] partitioning and mounting with disko for host '$HOST' on '$DEVICE'..."
-        DISKO_SKIP_SWAP=1 ${disko}/bin/disko \
-          --mode destroy,format,mount \
-          --root-mountpoint "$mount" \
-          --arg disks "$disko_disks" \
-          --yes-wipe-all-disks \
-          "$disko_config"
+        # Partitioning is not automated: the target filesystems (from the
+        # host's hosts/<host>/disk-config.nix, e.g. via `disko --mode
+        # destroy,format,mount`) must already be mounted under $mount before
+        # running this script.
+        if ! mountpoint -q "$mount"; then
+          echo "[install] error: $mount is not a mount point" >&2
+          echo "[install] partition and mount the target filesystems first (e.g. run disko manually), then re-run this script" >&2
+          exit 1
+        fi
 
         if [[ "$HOST" == "horizon" ]]; then
           echo "[install] copying dotfiles into target home..."
@@ -173,7 +172,7 @@
         type = "app";
         program = "${installScript}/bin/install";
         meta = {
-          description = "Install a NixOS host: disko partitions/mounts, then nixos-install chroots and installs";
+          description = "Install a NixOS host: builds the system closure and runs nixos-install (partitioning is manual)";
           mainProgram = "install";
         };
       };
